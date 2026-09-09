@@ -3,13 +3,14 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: [
-      'node_modules/',
-      'playwright-report/',
-      'test-results/',
-      'artifacts/',
-      'fixtures-app/',
-    ],
+    ignores: ['node_modules/', 'playwright-report/', 'test-results/', 'artifacts/'],
+  },
+  {
+    // Bundled apps under test are plain Node/browser JavaScript, not harness code.
+    files: ['apps/*/app/**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly', URL: 'readonly' },
+    },
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

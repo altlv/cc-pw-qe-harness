@@ -14,8 +14,11 @@ async function findSpecs(dir: string): Promise<string[]> {
   return files.flat();
 }
 
-const target = resolve(process.argv[2] ?? 'tests');
-const specs = await findSpecs(target);
+const roots = process.argv.slice(2);
+const targets = (roots.length > 0 ? roots : ['apps', 'tests']).map((root) => resolve(root));
+
+const found = await Promise.all(targets.map(findSpecs));
+const specs = found.flat().sort();
 
 let failed = 0;
 for (const spec of specs) {

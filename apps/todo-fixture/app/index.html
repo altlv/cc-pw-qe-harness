@@ -53,9 +53,20 @@
         render(data.todos);
       }
 
+      // Fault mode for proving the harness, enabled with ?optimistic=1. Appends the
+      // row before the write is confirmed and never rolls back — the real-world bug
+      // class where the UI shows success over a failed request. Off by default.
+      const optimistic = new URLSearchParams(location.search).get('optimistic') === '1';
+
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         error.hidden = true;
+        if (optimistic) {
+          const li = document.createElement('li');
+          li.dataset.testid = 'todo-item';
+          li.textContent = input.value;
+          list.append(li);
+        }
         const res = await fetch('/api/todos', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },

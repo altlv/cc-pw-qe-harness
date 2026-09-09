@@ -1,26 +1,21 @@
 # cc-pw-qe-harness
 
-Claude + Playwright test harness for QA/QE work.
+**cc** Claude · **pw** Playwright · **qe** quality engineering practices.
 
-Playwright drives the browser; Claude reasons about what it finds. The connective
-tissue is a **network capture layer** — every test records its request/response
-traffic, which is what makes AI-assisted triage possible at all. Playwright keeps
-that detail inside a trace file; this harness hands it to an agent as text.
+Playwright drives the browser, Claude reasons about what it finds, and the QE layer
+decides whether any of it is trustworthy. The connective tissue is a network capture
+layer: Playwright keeps request/response detail inside trace files, but an agent
+triaging a failure it did not watch happen needs that evidence as text.
 
 ## Status
 
-Early. One capability is built end to end; the rest are intentionally not scaffolded.
+Honest state of each part of the name.
 
-| Capability                                                   | Status     |
-| ------------------------------------------------------------ | ---------- |
-| **Failure triage** — classify a red test from its evidence   | ✅ built   |
-| **Test generation** — Playwright specs from specs/live pages | ⬜ planned |
-| **Exploratory agent** — Claude drives the browser unscripted | ⬜ planned |
-| **Self-healing selectors** — repair locators on failure      | ⬜ planned |
-
-The generation workflow will port from the `pwtest` skill in `goose-harness`, which
-already has the hard parts worked out: scan the page, record the flow, design
-scenarios, get explicit approval, generate, run, debug with an attempt cap.
+|        | Built                                                                                                                                                           | Not yet                                                                                                           |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **cc** | Bounded agent runner, triage agent, four role definitions (e2e-coder, api-coder, exploratory-tester, testability-reviewer)                                      | Agents not yet driven end to end; triage unverified against the live API; generation and self-healing not started |
+| **pw** | Per-app projects, network capture fixture, API request fixture, BasePage, page scanner, clock-driven timing tests                                               | Auth/storageState setup, multi-browser, sharding, component tests                                                 |
+| **qe** | Test quality gate, release-gate verdict (PASS/CONDITIONAL/FAIL), testability audit, practice docs for test design, risk, exploratory charters, defect reporting | Regression selection, flake tracking over time, quality metrics                                                   |
 
 ## Quick start
 
@@ -30,54 +25,84 @@ npx playwright install chromium
 npm test
 ```
 
-That runs against a bundled fixture app (`fixtures-app/`), so it works with no
-external environment and no API key.
+Runs against a bundled fixture app, so it works on a fresh clone with no external
+environment and no API key.
 
-For the agent side, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`:
+## Apps under test
+
+One folder per app under `apps/`, with its own config, tests, page objects and
+scans. App folders share nothing, so adding a target cannot disturb another.
+
+```
+apps/todo-fixture/      bundled locally, starts automatically
+apps/countdown-timer/   testpages.eviltester.com, external: true
+```
+
+Add one with `apps/<name>/app.config.ts` + `tests/`, then a line in
+`apps/registry.ts`. Playwright derives everything else. See `apps/README.md`.
+
+External apps are excluded from `npm test` and CI — a suite that goes red because
+someone else's site is down teaches the team to ignore red. Run them explicitly:
 
 ```bash
-npm run triage -- examples/failure-403.json
+npm run test:external
 ```
 
-## How it fits together
+## What each layer does
 
-```
-Playwright test
-   │
-   ├─ NetworkRecorder      every request/response, auto-attached on failure
-   ├─ quality gate         fails tests that assert nothing
-   │
-   └─ on failure ─────────► triage agent ──► {classification, evidence, fix}
-                             (bounded by turns / spend / wall-clock)
-```
+### Network capture (`pw`)
 
-### Network capture
-
-On by default. Assert on it directly, which catches the failure a UI-only test
-sleeps through:
+On by default; attaches to the HTML report on failure. Assert on it directly:
 
 ```ts
-import { test, expect } from '../../src/fixtures/harness.js';
-
-test('should persist the todo when a title is given', async ({ page, network }) => {
-  await page.getByTestId('todo-input').fill('Ship the harness');
-  await page.getByTestId('todo-submit').click();
-
-  await expect(page.getByTestId('todo-item').last()).toBeVisible();
-
-  const create = await network.waitForCall((c) => c.method === 'POST' && c.path === '/api/todos');
-  expect(create?.status).toBe(201);
-});
+const create = await network.waitForCall((c) => c.method === 'POST' && c.path === '/api/todos');
+expect(create?.status).toBe(201);
 ```
 
-A DOM-only assertion here passes even when the write 500s and the list renders from
-stale client state.
+A DOM-only assertion passes even when the write 500s and the list renders from
+stale client state. `tests/harness/network-capture.ui.spec.ts` proves exactly that,
+rather than asking you to take it on trust.
 
-### Bounded agents
+### No arbitrary waits (`pw`)
 
-Every agent run is capped on turns, dollars, and wall-clock — whichever trips first
-ends the run and returns a partial result that says why. An agent that cannot find
-the answer does not error; it keeps looking. Limits live in `.env`:
+`waitForTimeout` and `waitForSelector` are lint errors. For time-dependent UI drive
+`page.clock` instead — the countdown-timer suite asserts a 30-second countdown and
+a 60-second hold, and the whole file runs in about three seconds.
+
+### Page scanner and testability audit (`qe`)
+
+```bash
+npm run scan -- https://example.com/app
+```
+
+Inventories interactive elements, grades every selector `stable` /
+`text-dependent` / `fragile`, and reports what the team should fix to make the app
+testable. This is the prerequisite for generating tests: without it an agent invents
+selectors, which is how generated suites fill up with `.btn:nth-child(3)`.
+
+### Test quality gate (`qe`)
+
+`npm run assert-quality` — deterministic, no API key. Fails on tests with no
+assertion, navigate-and-assert-once tests, unmarked fragile selectors, and banned
+waits. Generated suites drift toward tests that are green and worthless; this is
+the floor.
+
+### Release gate (`qe`)
+
+`npm run gate` aggregates results, flake and quality findings into a verdict:
+
+- **FAIL** — failing tests, or tests that assert nothing. The suite is not telling
+  the truth about the product.
+- **CONDITIONAL** — flake, weak assertions, skipped tests. Shippable, recorded.
+- **PASS** — clean.
+
+Three outcomes rather than two, so a known risk can be shipped _and_ written down.
+
+### Bounded agents (`cc`)
+
+Every run is capped on turns, dollars and wall-clock; whichever trips first ends
+the run and returns a partial result saying why. An agent that cannot find the
+answer does not error — it keeps looking.
 
 ```
 AGENT_MAX_TURNS=12
@@ -85,38 +110,37 @@ AGENT_MAX_USD=1.00
 AGENT_TIMEOUT_MS=180000
 ```
 
-### Quality gate
-
-`npm run assert-quality` is a deterministic check, no API key required, that fails on:
-
-- tests with no `expect()` at all
-- navigate-and-assert-once tests with no interaction
-- unmarked position/class-dependent CSS selectors
-- `waitForTimeout()`
-
-It runs in CI ahead of the browser tests, and exists because generated suites drift
-toward tests that are green and worthless.
+Roles live in `src/agents/roles.ts` as SDK `AgentDefinition`s, each carrying the
+guardrails and the repo conventions in its prompt.
 
 ## Commands
 
 | Command                    | Does                                  |
 | -------------------------- | ------------------------------------- |
-| `npm test`                 | Playwright suite                      |
+| `npm test`                 | Local apps + harness self-tests       |
+| `npm run test:external`    | Third-party apps, opt-in              |
 | `npm run check`            | format + lint + typecheck             |
-| `npm run assert-quality`   | test quality gate                     |
-| `npm run triage -- <file>` | triage a failure JSON (needs API key) |
+| `npm run assert-quality`   | Test quality gate                     |
+| `npm run gate`             | Release verdict                       |
+| `npm run scan -- <url>`    | Page scan + testability audit         |
+| `npm run triage -- <file>` | Triage a failure JSON (needs API key) |
+
+## Practices
+
+`docs/practices/` — test design (equivalence partitioning, boundaries, state
+transition), risk-based prioritisation, exploratory charters and oracles, defect
+reporting. `docs/conventions.md` for code rules, `CLAUDE.md` for how agents work here.
+
+Much of this is adapted from a Goose-based QA harness: the guardrails, the verdict
+schema, the selector ladder and the anti-pattern list.
 
 ## CI
 
-GitHub Actions on push and PR. The `verify` job (format, lint, typecheck, quality
-gate, Playwright) needs no secrets. Agent checks are a separate job so a fork PR
-without `ANTHROPIC_API_KEY` skips them rather than failing.
-
-## Conventions
-
-`docs/conventions.md` for test rules, `CLAUDE.md` for how agents should work here.
+GitHub Actions on push and PR. `verify` needs no secrets: format, lint, typecheck,
+quality gate, Playwright, release gate. Agent checks are a separate job so a fork
+PR without `ANTHROPIC_API_KEY` skips rather than fails.
 
 ## Stack
 
 TypeScript (ESM/NodeNext) · `@playwright/test` · `@anthropic-ai/claude-agent-sdk` ·
-zod · ESLint + Prettier · Node 20+
+zod · faker · ESLint + Prettier · Node 20+

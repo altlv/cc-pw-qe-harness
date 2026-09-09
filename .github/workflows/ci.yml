@@ -40,14 +40,25 @@ jobs:
       - name: Install browsers
         run: npx playwright install --with-deps chromium
 
+      # External apps are excluded by default; they hit third-party sites and must
+      # never be able to redden CI.
       - name: Playwright tests
         run: npm test
+
+      # Aggregates results, flake and quality findings into a PASS/CONDITIONAL/FAIL
+      # verdict. Exits non-zero only on FAIL, so an accepted risk is recorded
+      # rather than silently swallowed or treated as a blocker.
+      - name: Release gate
+        if: ${{ !cancelled() }}
+        run: npm run gate
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            artifacts/
           retention-days: 7
 
   # Agent-backed checks cost tokens and need a secret, so they are a separate

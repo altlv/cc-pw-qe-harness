@@ -1,4 +1,4 @@
-import { test, expect } from '../../src/fixtures/harness.js';
+import { test, expect } from '../../../src/fixtures/harness.js';
 
 test.describe('Todos', () => {
   test.beforeEach(async ({ page }) => {

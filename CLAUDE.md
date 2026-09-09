@@ -1,81 +1,102 @@
 # CLAUDE.md
 
-Conventions for this repo. Read `docs/conventions.md` before writing or changing a test.
+Conventions for this repo. Read `docs/conventions.md` before writing or changing a
+test, and `docs/practices/` before deciding _what_ to test.
 
 ## What this repo is
 
-A harness that pairs Claude (via `@anthropic-ai/claude-agent-sdk`) with Playwright for
-QA/QE work. Four capabilities, in build order:
+A harness pairing Claude (via `@anthropic-ai/claude-agent-sdk`) with Playwright for
+QA/QE work.
 
-| Capability        | Status  | Entry point            |
-| ----------------- | ------- | ---------------------- |
-| Failure triage    | built   | `src/agents/triage.ts` |
-| Test generation   | planned | —                      |
-| Exploratory agent | planned | —                      |
-| Self-healing      | planned | —                      |
+| Capability                                            | Status                             | Entry point                 |
+| ----------------------------------------------------- | ---------------------------------- | --------------------------- |
+| Network capture                                       | built                              | `src/capture/network.ts`    |
+| Page scanner + testability audit                      | built                              | `src/tools/page-scanner.ts` |
+| Test quality gate                                     | built                              | `src/quality/assertions.ts` |
+| Release gate verdict                                  | built                              | `src/qe/gate.ts`            |
+| Failure triage agent                                  | built, unverified against live API | `src/agents/triage.ts`      |
+| Agent roles (e2e/api coder, exploratory, testability) | defined, not yet driven            | `src/agents/roles.ts`       |
+| Test generation, self-healing selectors               | planned                            | —                           |
 
-Only triage is implemented. The others are deliberately absent rather than stubbed —
-do not add placeholder modules for them. Build one end-to-end when it is wanted.
+Do not add placeholder modules for the planned items. Build one end to end when it
+is wanted.
 
 ## Non-negotiables
 
-**1. Every agent runs under a budget.** Never call `query()` from the SDK directly.
-Go through `runAgent()` in `src/agents/client.ts`, which enforces turn, spend, and
-wall-clock limits from `Budget`. An agent that cannot solve a problem will keep
-trying, and the failure mode is a long expensive loop, not an error. If you add an
-agent, give it the tightest `maxTurns` that can work.
+Ported from `core/HARNESS.md` and `core/guardrails/` in `goose-harness`.
 
-**2. A test must prove behaviour, not coverage.** Assert on an observable outcome.
-For state changes assert on the UI _and_ the captured network call. `npm run
-assert-quality` is the mechanical floor and it gates CI.
+**1. Evidence beats memory.** Read the file, run the check. Never claim a check ran
+when it did not — report NOT RUN explicitly. A test that did not execute is not
+evidence, and a test that passes without exercising the claim is insufficient.
 
-**3. Evidence over inference.** Agents reason from captured artifacts — network
-entries, error text, DOM snapshots — never from assumptions about how the app works.
-The triage system prompt says to prefer "unknown" over a confident guess; keep that
-property in anything new.
+**2. Every agent runs under a budget.** Never call the SDK's `query()` directly; go
+through `runAgent()` in `src/agents/client.ts`, which enforces turn, spend and
+wall-clock limits. An agent that cannot solve a problem loops rather than erroring.
 
-**4. Never widen a selector or delete an assertion to make a test green.** That is
-the one shortcut that destroys the value of the suite. Fix the locator or report
-the bug.
+**3. A test must prove behaviour.** Assert an observable outcome; for state changes
+assert the UI _and_ the captured network call. `npm run assert-quality` is the
+mechanical floor and it gates CI.
 
-**5. Do not read or commit `.env`.** `ANTHROPIC_API_KEY` lives there. Agent code
-reads it from the environment; nothing should print it.
+**4. Never widen a selector or delete an assertion to make a test green.** Fix the
+locator or report the defect.
+
+**5. Tests must be isolated.** Never assert on a shared collection's size — assert
+the specific thing your test created or rejected. Parallel workers share app state,
+and a count assertion is a race. This has already bitten once.
+
+**6. Do not read or commit `.env`.** Prefer checking that a variable exists over
+reading its value.
+
+**7. Destructive actions need explicit authorisation** — `git reset/clean/force`,
+deleting files, production writes. Ask first. **This includes `git commit` and
+`git push`: confirm with the user before either.**
+
+**8. Do not recursively load the repository.** Start from structure and targeted
+search, then open exact files.
 
 ## Layout
 
 ```
-src/agents/     Claude-side: budget guard, SDK client, triage
-src/capture/    Network recorder — the evidence layer
-src/fixtures/   Playwright fixtures; import test/expect from here
-src/quality/    Static analysis that gates generated tests
-src/cli/        Runnable entry points
-tests/          Specs
-fixtures-app/   Tiny app under test, so CI needs no external environment
+apps/<name>/       One app under test per folder — config, tests, pages, scans, README
+src/agents/        Budget guard, SDK client, triage, role definitions
+src/capture/       Network recorder — the evidence layer
+src/fixtures/      harness.ts for UI specs, api.ts for API specs
+src/pages/         BasePage — no assertions in page objects
+src/quality/       Static analysis gating generated tests
+src/qe/            Verdict schema and release gate
+src/tools/         Page scanner
+tests/harness/     Tests of the harness itself
+docs/practices/    Test design, risk, exploratory charters, defect reporting
 ```
+
+## Adding an app
+
+`apps/<name>/` with an `app.config.ts` and `tests/`, then register it in
+`apps/registry.ts`. Playwright derives the project, base URL and web server from
+the registry — nothing else needs editing. App folders never share code, so a new
+target cannot disturb an existing one.
 
 ## Commands
 
 ```bash
-npm test                  # Playwright
+npm test                  # local apps + harness self-tests
+npm run test:external     # third-party apps, opt-in only
 npm run check             # format + lint + typecheck
 npm run assert-quality    # test quality gate
+npm run gate              # PASS / CONDITIONAL / FAIL verdict
+npm run scan -- <url>     # page scan + testability audit
 npm run triage -- <file>  # triage a failure JSON (needs API key)
 ```
-
-## Network capture
-
-Capture is on by default via the `network` fixture (`auto: true`) and attaches to the
-HTML report when a test fails. Playwright's own reporting keeps this in the trace but
-never hands it over as text — which is exactly what an agent needs, since a 403 on a
-background call explains a "button does nothing" failure that the DOM cannot.
-
-Assert with `await network.waitForCall(predicate)`, not `entries()`. Network events
-reach Node asynchronously, so the DOM can already show a request's result before the
-recorder has seen it. This caused a real 1-in-60 flake during initial development.
 
 ## Gotchas
 
 - Relative imports need `.js` extensions (NodeNext).
-- `fixtures-app/server.mjs` is plain JavaScript, not TypeScript.
-- The fixture app holds todos in memory and grows across a run; write tests that do
-  not assume a fixed initial count.
+- Assert network with `await network.waitForCall(...)`, not `entries()`. Playwright
+  delivers network events to Node asynchronously, so the DOM can show a result
+  before the recorder sees it. This caused a real 1-in-60 flake.
+- Code inside `page.evaluate` must contain no named or const-assigned functions —
+  `tsx`/esbuild rewrites those with a `__name` helper that does not exist in the
+  page, and evaluate fails at runtime.
+- `page.clock.runFor()`, not `fastForward()`, for apps that reschedule with
+  recursive `setTimeout`. `fastForward` fires each pending timer once.
+- App servers under `apps/*/app/` are plain JavaScript, not TypeScript.

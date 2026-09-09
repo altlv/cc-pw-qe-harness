@@ -18,6 +18,8 @@ export interface AgentRunOptions {
   budget?: Budget;
   allowedTools?: string[];
   mcpServers?: Options['mcpServers'];
+  /** Role definitions the run may delegate to. See src/agents/roles.ts. */
+  agents?: Options['agents'];
   cwd?: string;
 }
 
@@ -59,6 +61,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
         maxTurns: budget.limits.maxTurns,
         allowedTools: options.allowedTools,
         mcpServers: options.mcpServers,
+        agents: options.agents,
         cwd: options.cwd,
         permissionMode: 'bypassPermissions',
         settingSources: [],
