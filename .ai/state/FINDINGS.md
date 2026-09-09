@@ -12,3 +12,7 @@
 | Network events reach Node after the DOM updates                           | OBSERVED | 1-in-60 failure asserting on entries() straight after an action             | high       | waitForCall() polling is required                                      |
 | `roles.ts` behaves as specified                                           | UNKNOWN  | never executed                                                              | —          | Do not claim `cc` is covered                                           |
 | Triage agent works against the live API                                   | UNKNOWN  | no API key present in env or .env                                           | —          | README must keep saying unverified                                     |
+| `.gitignore` rule `reports/` (unanchored) also ignored `examples/reports/` | OBSERVED | `git check-ignore -v` named .gitignore:25; `git ls-files examples/` showed only failure-403.json | high | The example report CI validates was never committed — first CI run failed |
+| `check-report` crashed with an unhandled ENOENT on a missing path | OBSERVED | CI log: `ENOENT ... open '.../examples/reports'` at check-report.ts:30 | high | Fixed: stat first, clear message, exit 2 for an explicit path |
+| A missing explicit path exited 0 before the fix | OBSERVED | local repro: `check-report does-not-exist` printed a message and exited 0 | high | That is how a CI step could "pass" while checking nothing |
+

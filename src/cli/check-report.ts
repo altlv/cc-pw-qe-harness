@@ -1,10 +1,14 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { auditReport, parseReport, type ReportProblem } from '../qe/report.js';
 
 async function findReports(target: string): Promise<string[]> {
-  const entries = await readdir(target, { withFileTypes: true }).catch(() => null);
-  if (entries === null) return [target]; // a single file path
+  const info = await stat(target).catch(() => null);
+  if (info === null) return [];
+  // A file path was given directly rather than a directory to walk.
+  if (info.isFile()) return [target];
+
+  const entries = await readdir(target, { withFileTypes: true });
   const nested = await Promise.all(
     entries.map(async (entry) => {
       const full = join(target, entry.name);
@@ -15,10 +19,18 @@ async function findReports(target: string): Promise<string[]> {
   return nested.flat();
 }
 
-const target = resolve(process.argv[2] ?? 'reports');
+const explicit = process.argv[2];
+const target = resolve(explicit ?? 'reports');
 const files = (await findReports(target)).sort();
 
 if (files.length === 0) {
+  // A path someone asked for by name and that does not exist is a mistake — most
+  // likely a typo, or a file that was never committed. Exiting 0 here is how a CI
+  // step "passed" while checking nothing at all.
+  if (explicit !== undefined) {
+    console.error(`No reports found at ${target}. Check the path exists and is committed.`);
+    process.exit(2);
+  }
   console.log(`No reports found under ${target}.`);
   process.exit(0);
 }

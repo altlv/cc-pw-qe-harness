@@ -37,11 +37,6 @@ jobs:
       - name: Test quality gate
         run: npm run assert-quality
 
-      # Validates any committed QA report against docs/report-format.md — refuses a
-      # blocker without direct evidence, or a PASS resting on claimed evidence.
-      - name: Report format
-        run: npm run check-report -- examples/reports
-
       - name: Install browsers
         run: npx playwright install --with-deps chromium
 
@@ -49,6 +44,14 @@ jobs:
       # never be able to redden CI.
       - name: Playwright tests
         run: npm test
+
+      # Validates any committed QA report against docs/report-format.md — refuses a
+      # blocker without direct evidence, or a PASS resting on claimed evidence.
+      # Runs after the tests: a report problem must not skip the test run, which is
+      # what turned the first CI failure into a confusing cascade.
+      - name: Report format
+        if: ${{ !cancelled() }}
+        run: npm run check-report -- examples/reports
 
       # Aggregates results, flake and quality findings into a PASS/CONDITIONAL/FAIL
       # verdict. Exits non-zero only on FAIL, so an accepted risk is recorded
