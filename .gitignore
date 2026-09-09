@@ -1,0 +1,21 @@
+# Secrets — never commit. ANTHROPIC_API_KEY lives here.
+.env
+.env.*
+!.env.example
+
+node_modules/
+
+# Playwright output
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Harness artifacts: network captures, agent transcripts, triage reports
+artifacts/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

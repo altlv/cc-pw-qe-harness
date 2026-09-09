@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Harness Fixture App</title>
+    <style>
+      body {
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+        max-width: 40rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      li {
+        margin: 0.25rem 0;
+      }
+      .error {
+        color: #b00020;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Todos</h1>
+
+    <form data-testid="todo-form">
+      <input data-testid="todo-input" name="title" placeholder="What needs doing?" />
+      <button data-testid="todo-submit" type="submit">Add</button>
+    </form>
+
+    <p data-testid="todo-error" class="error" hidden></p>
+    <ul data-testid="todo-list"></ul>
+
+    <script>
+      const list = document.querySelector('[data-testid="todo-list"]');
+      const error = document.querySelector('[data-testid="todo-error"]');
+      const form = document.querySelector('[data-testid="todo-form"]');
+      const input = document.querySelector('[data-testid="todo-input"]');
+
+      function render(todos) {
+        list.innerHTML = '';
+        for (const todo of todos) {
+          const li = document.createElement('li');
+          li.dataset.testid = 'todo-item';
+          li.textContent = todo.title;
+          list.append(li);
+        }
+      }
+
+      async function load() {
+        const res = await fetch('/api/todos');
+        const data = await res.json();
+        render(data.todos);
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        error.hidden = true;
+        const res = await fetch('/api/todos', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ title: input.value }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          error.textContent = data.error;
+          error.hidden = false;
+          return;
+        }
+        input.value = '';
+        await load();
+      });
+
+      load();
+    </script>
+  </body>
+</html>

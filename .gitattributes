@@ -1,0 +1,3 @@
+# Prettier enforces endOfLine: lf. Without this, a Windows checkout gets CRLF and
+# `npm run format:check` fails on a clean clone.
+* text=auto eol=lf

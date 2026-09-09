@@ -1,0 +1,37 @@
+{
+  "testTitle": "should add a todo and persist it via the API when a title is given",
+  "errorMessage": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for getByTestId('todo-item').filter({ hasText: 'Ship the harness' })\n  - locator resolved to 0 elements",
+  "url": "http://127.0.0.1:4173/",
+  "network": {
+    "total": 4,
+    "byStatus": { "200": 2, "403": 1, "204": 1 },
+    "failed": [
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:4173/api/todos",
+        "path": "/api/todos",
+        "status": 403,
+        "failure": null,
+        "durationMs": 42,
+        "resourceType": "fetch",
+        "requestBody": "{\"title\":\"Ship the harness\"}",
+        "responseBody": "{\"error\":\"session expired\"}",
+        "startedAt": "2026-09-09T10:00:00.000Z"
+      }
+    ],
+    "slowest": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:4173/api/todos",
+        "path": "/api/todos",
+        "status": 200,
+        "failure": null,
+        "durationMs": 120,
+        "resourceType": "fetch",
+        "requestBody": null,
+        "responseBody": "{\"todos\":[]}",
+        "startedAt": "2026-09-09T09:59:59.000Z"
+      }
+    ]
+  }
+}
