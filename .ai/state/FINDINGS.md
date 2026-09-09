@@ -15,4 +15,6 @@
 | `.gitignore` rule `reports/` (unanchored) also ignored `examples/reports/` | OBSERVED | `git check-ignore -v` named .gitignore:25; `git ls-files examples/` showed only failure-403.json | high | The example report CI validates was never committed — first CI run failed |
 | `check-report` crashed with an unhandled ENOENT on a missing path | OBSERVED | CI log: `ENOENT ... open '.../examples/reports'` at check-report.ts:30 | high | Fixed: stat first, clear message, exit 2 for an explicit path |
 | A missing explicit path exited 0 before the fix | OBSERVED | local repro: `check-report does-not-exist` printed a message and exited 0 | high | That is how a CI step could "pass" while checking nothing |
+| `--reporter=line` on the CLI replaces the reporters configured in playwright.config.ts | OBSERVED | after a `--reporter=line` run, artifacts/results.json mtime was unchanged | high | The gate silently read hours-old results and reported on a world that no longer existed |
+| The gate had no staleness check | OBSERVED | rendered "No tests ran / 56 skipped" while 61 tests had just passed | high | Fixed: refuses results older than the newest source file, exit 2 |
 
