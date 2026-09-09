@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { hasApiKey } from '../agents/client.js';
+import { AgentAuthError } from '../agents/client.js';
 import { triageFailure, type TriageInput } from '../agents/triage.js';
 
 const path = process.argv[2];
@@ -10,13 +10,20 @@ if (path === undefined) {
   process.exit(2);
 }
 
-if (!hasApiKey()) {
-  console.error('ANTHROPIC_API_KEY is not set — cannot triage. Copy .env.example to .env.');
-  process.exit(2);
+const input = JSON.parse(await readFile(path, 'utf8')) as TriageInput;
+
+let result;
+try {
+  result = await triageFailure(input);
+} catch (error) {
+  if (error instanceof AgentAuthError) {
+    console.error(error.message);
+    process.exit(2);
+  }
+  throw error;
 }
 
-const input = JSON.parse(await readFile(path, 'utf8')) as TriageInput;
-const { verdict, degraded, costUsd } = await triageFailure(input);
+const { verdict, degraded, costUsd } = result;
 
 if (verdict === null) {
   console.error(`Triage incomplete: ${degraded} ($${costUsd.toFixed(4)})`);

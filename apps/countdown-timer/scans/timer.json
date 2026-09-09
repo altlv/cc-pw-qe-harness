@@ -1,0 +1,151 @@
+{
+  "url": "https://testpages.eviltester.com/apps/countdown-timer/",
+  "title": "Countdown Timer Synchronization Testing App | Test Pages",
+  "scannedAt": "2026-09-09T20:16:32.962Z",
+  "counts": {
+    "interactive": 11,
+    "withTestId": 0,
+    "forms": 1,
+    "tables": 0
+  },
+  "interactive": [
+    {
+      "tag": "a",
+      "type": null,
+      "role": null,
+      "accessibleName": "Apps",
+      "testId": null,
+      "suggested": "getByRole('link', { name: \"Apps\" })",
+      "stability": "text-dependent"
+    },
+    {
+      "tag": "a",
+      "type": null,
+      "role": null,
+      "accessibleName": "Exploratory Testing",
+      "testId": null,
+      "suggested": "getByRole('link', { name: \"Exploratory Testing\" })",
+      "stability": "text-dependent"
+    },
+    {
+      "tag": "a",
+      "type": null,
+      "role": null,
+      "accessibleName": "Interaction",
+      "testId": null,
+      "suggested": "getByRole('link', { name: \"Interaction\" })",
+      "stability": "text-dependent"
+    },
+    {
+      "tag": "a",
+      "type": null,
+      "role": null,
+      "accessibleName": "JavaScript",
+      "testId": null,
+      "suggested": "getByRole('link', { name: \"JavaScript\" })",
+      "stability": "text-dependent"
+    },
+    {
+      "tag": "a",
+      "type": null,
+      "role": null,
+      "accessibleName": "Micro App",
+      "testId": null,
+      "suggested": "getByRole('link', { name: \"Micro App\" })",
+      "stability": "text-dependent"
+    },
+    {
+      "tag": "button",
+      "type": null,
+      "role": null,
+      "accessibleName": "Start Timer",
+      "testId": null,
+      "suggested": "locator('#start-timer')",
+      "stability": "stable"
+    },
+    {
+      "tag": "button",
+      "type": null,
+      "role": null,
+      "accessibleName": "Stop Timer",
+      "testId": null,
+      "suggested": "locator('#stop-timer')",
+      "stability": "stable"
+    },
+    {
+      "tag": "button",
+      "type": null,
+      "role": null,
+      "accessibleName": "Clear Timer",
+      "testId": null,
+      "suggested": "locator('#clear-timer')",
+      "stability": "stable"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "role": null,
+      "accessibleName": "Seconds",
+      "testId": null,
+      "suggested": "locator('#timer-seconds')",
+      "stability": "stable"
+    },
+    {
+      "tag": "button",
+      "type": null,
+      "role": null,
+      "accessibleName": "Reset Timer",
+      "testId": null,
+      "suggested": "locator('#reset-timer')",
+      "stability": "stable"
+    },
+    {
+      "tag": "a",
+      "type": null,
+      "role": null,
+      "accessibleName": "Countdown Timer - Instructions",
+      "testId": null,
+      "suggested": "getByRole('link', { name: \"Countdown Timer - Instructions\" })",
+      "stability": "text-dependent"
+    }
+  ],
+  "endpoints": [],
+  "testability": [
+    {
+      "severity": "medium",
+      "element": "<a> \"Apps\"",
+      "problem": "Only targetable by visible text, so the test breaks on a copy or locale change.",
+      "suggestion": "Add data-testid to decouple the test from wording."
+    },
+    {
+      "severity": "medium",
+      "element": "<a> \"Exploratory Testing\"",
+      "problem": "Only targetable by visible text, so the test breaks on a copy or locale change.",
+      "suggestion": "Add data-testid to decouple the test from wording."
+    },
+    {
+      "severity": "medium",
+      "element": "<a> \"Interaction\"",
+      "problem": "Only targetable by visible text, so the test breaks on a copy or locale change.",
+      "suggestion": "Add data-testid to decouple the test from wording."
+    },
+    {
+      "severity": "medium",
+      "element": "<a> \"JavaScript\"",
+      "problem": "Only targetable by visible text, so the test breaks on a copy or locale change.",
+      "suggestion": "Add data-testid to decouple the test from wording."
+    },
+    {
+      "severity": "medium",
+      "element": "<a> \"Micro App\"",
+      "problem": "Only targetable by visible text, so the test breaks on a copy or locale change.",
+      "suggestion": "Add data-testid to decouple the test from wording."
+    },
+    {
+      "severity": "medium",
+      "element": "<a> \"Countdown Timer - Instructions\"",
+      "problem": "Only targetable by visible text, so the test breaks on a copy or locale change.",
+      "suggestion": "Add data-testid to decouple the test from wording."
+    }
+  ]
+}

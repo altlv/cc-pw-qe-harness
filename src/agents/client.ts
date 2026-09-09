@@ -23,9 +23,24 @@ export interface AgentRunOptions {
   cwd?: string;
 }
 
-export function hasApiKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+export class AgentAuthError extends Error {}
+
+/**
+ * The SDK resolves credentials itself — ANTHROPIC_API_KEY, an apiKeyHelper, a
+ * managed key, or the OAuth session from a Claude Code login.
+ *
+ * So do not pre-check for an API key. An earlier version of this file gated every
+ * run on `ANTHROPIC_API_KEY` being set, which refuses to run for anyone signed in
+ * through Claude Code — the most common setup. Attempt the run and report whatever
+ * the SDK actually says.
+ */
+function isAuthFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /authenticat|oauth|api key|unauthorized|401/i.test(message);
 }
+
+export const AUTH_HINT =
+  'Agent auth failed. Either sign in with `claude login`, or set ANTHROPIC_API_KEY in .env.';
 
 export function model(): string {
   return process.env.HARNESS_MODEL?.trim() || 'claude-sonnet-5';
@@ -39,10 +54,6 @@ export function model(): string {
  * same harness would behave differently on two machines and in CI.
  */
 export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult> {
-  if (!hasApiKey()) {
-    throw new Error('ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill it in.');
-  }
-
   const budget = options.budget ?? Budget.fromEnv();
   // The per-message check below only fires when a message arrives; this catches a
   // run that goes quiet mid-tool-call and would otherwise hang past the limit.
@@ -88,6 +99,8 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
   } catch (error) {
     if (budget.controller.signal.aborted) {
       stoppedBy ??= 'aborted';
+    } else if (isAuthFailure(error)) {
+      throw new AgentAuthError(`${AUTH_HINT}\n  ${(error as Error).message}`);
     } else {
       throw error;
     }

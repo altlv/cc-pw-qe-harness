@@ -46,7 +46,7 @@ test.describe('Todos API', () => {
 
   test.describe('title validation', () => {
     // Equivalence partitioning: each case is a distinct class of invalid input,
-    // not an arbitrary example. See docs/practices/test-design.md.
+    // not an arbitrary example. See .claude/skills/test-design/SKILL.md.
     const invalid = [
       { label: 'empty string', title: '' },
       { label: 'whitespace only', title: '   ' },

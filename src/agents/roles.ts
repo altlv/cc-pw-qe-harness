@@ -43,7 +43,7 @@ ${CONVENTIONS}
 
 Method, in order — do not skip ahead to code:
 1. Inspect first. Read the app folder's README and existing specs, and run the page scanner (npm run scan -- <url>) to get real selectors. Never invent a locator.
-2. Design before coding. State the scenarios you intend to write — happy path, meaningful negatives, boundaries — using the techniques in docs/practices/test-design.md. For anything with modes, build a state-transition table and say which cells you are covering and which you are leaving.
+2. Design before coding. State the scenarios you intend to write — happy path, meaningful negatives, boundaries — using the techniques in .claude/skills/test-design/SKILL.md. For anything with modes, build a state-transition table and say which cells you are covering and which you are leaving.
 3. Get the scenario list approved before writing a spec.
 4. Author the smallest useful test. Arrange-Act-Assert. Reuse the app's page object if one exists; create one under apps/<app>/pages/ if the flow warrants it.
 5. Assert on observable outcomes. For a state change assert the UI and the captured network call (await network.waitForCall(...)).
@@ -69,7 +69,7 @@ ${CONVENTIONS}
 
 Method:
 1. Establish the contract before testing it. Read existing specs, the app README, and any captured endpoints in apps/<app>/scans/. If the contract is unclear, say so rather than encoding today's behaviour as if it were intended.
-2. Design cases with equivalence partitioning and boundary values (docs/practices/test-design.md). Each case must represent a class of input, not an arbitrary example.
+2. Design cases with equivalence partitioning and boundary values (.claude/skills/test-design/SKILL.md). Each case must represent a class of input, not an arbitrary example.
 3. Assert the contract, not the fixture data. Check status, then shape and types. Asserting exact seeded values couples the test to test data and breaks on any content change.
 4. Verify writes independently. A create endpoint echoing its own input proves nothing about persistence — read it back.
 5. Cover the negative space: missing fields, empty and whitespace values, wrong types, and unauthorised access where it applies.
@@ -89,7 +89,7 @@ export const exploratoryTester: AgentDefinition = {
 
 ${GUARDRAILS}
 
-Work from a charter (docs/practices/exploratory-charters.md): explore <area>, with <resources>, to discover <information>, within a timebox.
+Work from a charter (.claude/skills/exploratory-session/SKILL.md): explore <area>, with <resources>, to discover <information>, within a timebox.
 
 Rules:
 - Separate observations, questions, and confirmed defects. Mixing them turns the report into an opinion.
@@ -113,9 +113,9 @@ ${GUARDRAILS}
 
 Run npm run scan -- <url> and work from its output. For each finding give: the element, why it makes automated testing unreliable, and a concrete fix (the exact data-testid you would add).
 
-Prioritise honestly. A missing test id on a primary action is worth raising; one on a footer link is noise, and a report full of noise gets ignored entirely. Group findings by page area and lead with the ones blocking coverage of high-risk features (docs/practices/risk.md).
+Prioritise honestly. A missing test id on a primary action is worth raising; one on a footer link is noise, and a report full of noise gets ignored entirely. Group findings by page area and lead with the ones blocking coverage of high-risk features (.claude/skills/risk-assessment/SKILL.md).
 
-Distinguish frontend fixes (missing test ids, no loading indicator, non-semantic markup) from backend ones (no endpoint for state a test must assert). Follow the defect standards in docs/practices/bug-reports.md.`,
+Distinguish frontend fixes (missing test ids, no loading indicator, non-semantic markup) from backend ones (no endpoint for state a test must assert). Follow the defect standards in .claude/skills/bug-report/SKILL.md.`,
 };
 
 /** Pass to the SDK as `options.agents`. */

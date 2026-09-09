@@ -21,10 +21,13 @@
     "serve:fixture": "node fixtures-app/server.mjs",
     "scan": "tsx src/cli/scan.ts",
     "test:external": "cross-env RUN_EXTERNAL=1 playwright test --project=countdown-timer",
-    "gate": "tsx src/cli/gate.ts"
+    "gate": "tsx src/cli/gate.ts",
+    "check-report": "tsx src/cli/check-report.ts",
+    "mutate": "tsx src/cli/mutate.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.266",
+    "yaml": "^2.9.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {

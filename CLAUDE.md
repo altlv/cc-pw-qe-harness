@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Conventions for this repo. Read `docs/conventions.md` before writing or changing a
-test, and `docs/practices/` before deciding _what_ to test.
+test, and the skills in `.claude/skills/` before deciding _what_ to test.
 
 ## What this repo is
 
@@ -66,7 +66,7 @@ src/quality/       Static analysis gating generated tests
 src/qe/            Verdict schema and release gate
 src/tools/         Page scanner
 tests/harness/     Tests of the harness itself
-docs/practices/    Test design, risk, exploratory charters, defect reporting
+.claude/skills/    Test design, risk, exploratory sessions, oracles, defect reporting
 ```
 
 ## Adding an app
@@ -85,6 +85,7 @@ npm run check             # format + lint + typecheck
 npm run assert-quality    # test quality gate
 npm run gate              # PASS / CONDITIONAL / FAIL verdict
 npm run scan -- <url>     # page scan + testability audit
+npm run check-report      # validate QA reports against docs/report-format.md
 npm run triage -- <file>  # triage a failure JSON (needs API key)
 ```
 

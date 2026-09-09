@@ -1,0 +1,5 @@
+# Generated scan artifacts — committed as testability records, not hand-edited
+apps/*/scans/
+artifacts/
+playwright-report/
+test-results/

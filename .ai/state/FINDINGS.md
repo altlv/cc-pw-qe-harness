@@ -1,14 +1,14 @@
 # FINDINGS — claim ledger
 
-| Claim | Type | Evidence | Confidence | Consequence |
-|---|---|---|---|---|
-| FakeRestAPI POST /Books returns 200 and echoes input but does NOT persist | OBSERVED | `POST /api/v1/Books {id:9999}` -> 200 echo; `GET /api/v1/Books/9999` -> 404 | high | Any create-then-read test must be marked `test.fail()` as known-broken |
-| FakeRestAPI returns 200 on create, not 201 | OBSERVED | curl status=200 on POST /api/v1/Books | high | Contract smell worth documenting |
-| FakeRestAPI 404s carry RFC7231 problem+json | OBSERVED | GET /api/v1/Books/200000 body has type/title/status/traceId | high | Assertable error contract |
-| GitHub API unauthenticated rate limit is 60/hr | OBSERVED | `X-RateLimit-Limit: 60` on GET /repos/microsoft/playwright | high | Tests must authenticate or skip, else flake |
-| GitHub repos API returns ETag; supports conditional requests | OBSERVED | `ETag: W/"769f23..."` response header | high | Enables 304 conditional-request tests |
-| Countdown timer `reset` does not change running state | OBSERVED | probe: reset while running then runFor(10s) -> 00:00:35 | high | Corrected a wrong test assumption |
-| Playwright `clock.fastForward` fires each pending timer once | OBSERVED | fastForward(4000) advanced display 1s; runFor(5000) advanced 5s | high | Must use runFor for recursive setTimeout apps |
-| Network events reach Node after the DOM updates | OBSERVED | 1-in-60 failure asserting on entries() straight after an action | high | waitForCall() polling is required |
-| `roles.ts` behaves as specified | UNKNOWN | never executed | — | Do not claim `cc` is covered |
-| Triage agent works against the live API | UNKNOWN | no API key present in env or .env | — | README must keep saying unverified |
+| Claim                                                                     | Type     | Evidence                                                                    | Confidence | Consequence                                                            |
+| ------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------- |
+| FakeRestAPI POST /Books returns 200 and echoes input but does NOT persist | OBSERVED | `POST /api/v1/Books {id:9999}` -> 200 echo; `GET /api/v1/Books/9999` -> 404 | high       | Any create-then-read test must be marked `test.fail()` as known-broken |
+| FakeRestAPI returns 200 on create, not 201                                | OBSERVED | curl status=200 on POST /api/v1/Books                                       | high       | Contract smell worth documenting                                       |
+| FakeRestAPI 404s carry RFC7231 problem+json                               | OBSERVED | GET /api/v1/Books/200000 body has type/title/status/traceId                 | high       | Assertable error contract                                              |
+| GitHub API unauthenticated rate limit is 60/hr                            | OBSERVED | `X-RateLimit-Limit: 60` on GET /repos/microsoft/playwright                  | high       | Tests must authenticate or skip, else flake                            |
+| GitHub repos API returns ETag; supports conditional requests              | OBSERVED | `ETag: W/"769f23..."` response header                                       | high       | Enables 304 conditional-request tests                                  |
+| Countdown timer `reset` does not change running state                     | OBSERVED | probe: reset while running then runFor(10s) -> 00:00:35                     | high       | Corrected a wrong test assumption                                      |
+| Playwright `clock.fastForward` fires each pending timer once              | OBSERVED | fastForward(4000) advanced display 1s; runFor(5000) advanced 5s             | high       | Must use runFor for recursive setTimeout apps                          |
+| Network events reach Node after the DOM updates                           | OBSERVED | 1-in-60 failure asserting on entries() straight after an action             | high       | waitForCall() polling is required                                      |
+| `roles.ts` behaves as specified                                           | UNKNOWN  | never executed                                                              | —          | Do not claim `cc` is covered                                           |
+| Triage agent works against the live API                                   | UNKNOWN  | no API key present in env or .env                                           | —          | README must keep saying unverified                                     |

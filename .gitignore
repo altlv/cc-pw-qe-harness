@@ -6,10 +6,13 @@
 node_modules/
 
 # Playwright output
+artifacts/
 playwright-report/
 test-results/
 blob-report/
 .playwright/
+.ai/
+
 
 # Harness artifacts: network captures, agent transcripts, triage reports
 artifacts/
@@ -19,3 +22,4 @@ artifacts/
 .idea/
 .DS_Store
 Thumbs.db
+reports/

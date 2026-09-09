@@ -127,9 +127,14 @@ guardrails and the repo conventions in its prompt.
 
 ## Practices
 
-`docs/practices/` — test design (equivalence partitioning, boundaries, state
-transition), risk-based prioritisation, exploratory charters and oracles, defect
-reporting. `docs/conventions.md` for code rules, `CLAUDE.md` for how agents work here.
+`.claude/skills/` — loadable skills for deciding what to test (`risk-assessment`,
+`test-design`, `exploratory-session`), judging findings (`oracle-check`, `bug-report`,
+`flaky-test-detection`), writing tests (`pwtest`, `testability-audit`) and working
+honestly (`work-discipline`, `honesty-check`). See
+[`.claude/skills/README.md`](.claude/skills/README.md) for routing and for what is
+deliberately absent.
+
+`docs/conventions.md` for code rules, `CLAUDE.md` for how agents work here.
 
 Much of this is adapted from a Goose-based QA harness: the guardrails, the verdict
 schema, the selector ladder and the anti-pattern list.

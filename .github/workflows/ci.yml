@@ -37,6 +37,11 @@ jobs:
       - name: Test quality gate
         run: npm run assert-quality
 
+      # Validates any committed QA report against docs/report-format.md — refuses a
+      # blocker without direct evidence, or a PASS resting on claimed evidence.
+      - name: Report format
+        run: npm run check-report -- examples/reports
+
       - name: Install browsers
         run: npx playwright install --with-deps chromium
 

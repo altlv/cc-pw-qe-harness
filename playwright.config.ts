@@ -29,6 +29,15 @@ export default defineConfig({
   },
 
   projects: [
+    // Unit level: the harness's own pure logic. No browser, no server, no network.
+    // Playwright Test is a general-purpose runner — it only starts a browser when a
+    // test actually asks for `page`, so one runner covers all five levels and the
+    // repo needs no second test framework.
+    {
+      name: 'unit',
+      testDir: './tests/unit',
+      testMatch: '**/*.test.ts',
+    },
     // One project per app under test, derived from apps/registry.ts.
     ...activeApps.map((app) => ({
       name: app.name,

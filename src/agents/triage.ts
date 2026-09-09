@@ -82,7 +82,7 @@ function buildPrompt(input: TriageInput): string {
 }
 
 /** Pulls the JSON object out of a reply that may be fenced or prose-wrapped. */
-function extractJson(text: string): unknown {
+export function extractJson(text: string): unknown {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const candidate = fenced?.[1] ?? text;
   const start = candidate.indexOf('{');
