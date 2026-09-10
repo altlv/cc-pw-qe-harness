@@ -1,6 +1,6 @@
 ---
 name: testability-audit
-description: Audit an app for how testable it is and raise findings a developer can act on — missing test ids, text-dependent selectors, unobservable state. Use when automation keeps breaking, before automating a new app, or when asked why tests are fragile. Not for writing tests (pwtest).
+description: Audit an app for how testable it is and raise findings a developer can act on — ambiguous or unaddressable controls, unlabelled inputs, state you cannot observe. Use when automation keeps breaking, before automating a new app, or when asked why tests are fragile. Not for writing tests (pwtest).
 ---
 
 Fragile tests are usually a product problem wearing a test costume. If the only way to
@@ -17,12 +17,18 @@ rewriting the tests will not fix it.
 ## When NOT to use
 
 - You are writing tests now → `pwtest` (it produces findings as a side effect)
-- The app is yours to change → just add the test ids
 
 ## Operating rules
 
-- **Prioritise honestly.** A missing test id on a primary action is worth raising; one
-  on a footer link is noise, and a report full of noise gets ignored entirely.
+- **A missing test id is not a finding.** Most applications do not have test ids and
+  never will. A control with a clear accessible name is testable. Raising "add a test
+  id" for every element produces a report nobody reads, and trains the team to ignore
+  the next one — which may be real.
+- **Raise what actually breaks a run**, in this order: a selector matching more than
+  one element; a control reachable only by position; an input with no label; a control
+  whose effect cannot be observed.
+- **Prioritise honestly.** A problem on a primary action is worth raising; the same one
+  on a footer link is noise.
 - **Every finding carries the fix.** Name the exact attribute you would add.
 - **Separate frontend from backend findings.** They go to different people.
 
@@ -35,27 +41,35 @@ npm run scan -- <url> apps/<app>/scans/<page>.json
 SCAN_WITHIN=main npm run scan -- <url>    # scope out site chrome
 ```
 
-The scanner grades every interactive element **stable** / **text-dependent** /
-**fragile** and writes findings. Commit the scan — it is a dated testability record,
-and the delta between two scans is the evidence that things are improving or rotting.
+The scanner reports each control's affordance (input / submit / toggle / control /
+navigation), its input constraints, the attributes that expose its state, and whether
+its suggested selector resolves to exactly one element. Commit the scan — it is a dated
+testability record, and the delta between two scans is the evidence that things are
+improving or rotting.
 
-### 2. Read the grades, not just the count
+### 2. Read the addressability line, not the test-id count
 
-- **stable** — a test id, or a hand-written id. Nothing to do.
-- **text-dependent** — reachable only by its visible text. Works today; breaks on a
-  copy change or a second locale. Worth raising for anything on a critical path.
-- **fragile** — no test id, no id, no accessible name. There is nothing stable to
-  target at all. Always worth raising.
+- **ambiguous** — the selector matches several elements. This is the one that actually
+  fails a run, via a strict-mode violation, and it fails regardless of test ids.
+  Always raise it.
+- **positional** — no name, no id, no test id. Nothing stable to target. Always raise.
+- **by name** — reachable via role and accessible name. This is **fine**, and it is how
+  most of the world's testable apps work. Worth mentioning only on a critical path in a
+  product that localises.
+- **stable** — a test id or a hand-written id. Nothing to do.
 
-A page of entirely text-dependent controls is not a crisis if the product ships in one
-language and the copy is stable. Say that, rather than filing forty tickets.
+A page of entirely name-addressed controls is not a crisis. Say so, rather than filing
+forty tickets.
 
 ### 3. Check what the scan cannot see
 
-The scanner reads the DOM. It cannot tell you:
+The scanner flags a **toggle that exposes no state** on its own. What it still cannot
+tell you:
 
-- **Is state observable?** Can a test tell success from failure without screenshots?
-  A spinner that never resolves and a spinner that resolves invisibly look identical.
+- **Does the observable state mean what it says?** `aria-expanded="true"` on a panel
+  that never opened is worse than no attribute at all.
+- **Is progress observable?** A spinner that never resolves and one that resolves
+  invisibly look identical to a test.
 - **Is there an API to assert against?** UI-only truth forces every check through the
   slowest layer.
 - **Can the app be put into a state?** If reaching the case under test needs twenty
@@ -71,9 +85,15 @@ Group by page area, lead with what blocks coverage of the highest-risk features.
 finding: the element, why it makes automation unreliable, and the concrete fix.
 
 ```
-[FE] Primary "Add booking" button has no data-testid — /bookings
-  Reachable only by its label, so the test breaks on any copy or locale change.
-  Fix: add data-testid="booking-submit".
+[FE] Three "Edit" buttons share one accessible name — /bookings
+  getByRole('button', { name: 'Edit' }) matches every row, so any test using it
+  fails on a strict-mode violation rather than on the behaviour it checks.
+  Fix: name them per row, e.g. aria-label="Edit booking 4821".
+
+[FE] "Start Timer" gives no sign it started — /timer
+  The button carries no aria-pressed and the app exposes no running state, so a
+  test can click it and cannot assert that anything happened.
+  Fix: add aria-pressed, or expose the state on the display element.
 
 [BE] No endpoint exposes booking state — /bookings
   Tests must infer success from rendered rows, so a stale render passes.

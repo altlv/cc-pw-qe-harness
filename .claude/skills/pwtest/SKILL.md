@@ -54,12 +54,18 @@ npm run scan -- <url> apps/<app>/scans/<feature>.json
 Set `SCAN_WITHIN` to a CSS scope when the page has heavy site chrome, or the report
 drowns in nav links.
 
-Report back briefly: how many interactive elements, how many have `data-testid`, and
-the stable / text-dependent / fragile split. Commit the scan — it is a testability
-record, and it is the evidence the next step rests on.
+Report back briefly: the interactive surface (inputs, submits, how many expose state),
+the addressability split, and **anything ambiguous or unreachable** — those are what
+break a run. Do not report a test-id count as if it were a quality measure; most apps
+have none and are perfectly testable. Commit the scan — it is a testability record,
+and the evidence the next step rests on.
 
-If the scan reports fragile elements, note them. They become testability findings in
-Step 7.
+The scan also prints a **data dictionary** built from captured traffic: field names,
+types, whether a value is ever null, and real samples. That is what lets a test assert
+on values rather than on visibility. Read it before designing assertions.
+
+If the scan reports ambiguous, unreachable or unaddressable elements, note them. They
+become testability findings in Step 7.
 
 ## Step 4 — Learn the behaviour, do not assume it
 

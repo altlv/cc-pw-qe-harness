@@ -1,19 +1,90 @@
 import type { Page } from '@playwright/test';
 
+/**
+ * Testability, as this harness defines it:
+ *
+ *   the ability to **identify** and **interact with** the available elements and
+ *   objects, easily enough.
+ *
+ * All three parts carry weight. *Identify* is addressing one specific thing and
+ * no other. *Interact* is being able to act on it once found — which is not
+ * implied by finding it. *Easily enough* is the pragmatic bar: a workable route
+ * counts, and it does not have to be the ideal one.
+ *
+ * Test ids are one way to satisfy the first half and were inherited from the
+ * tooling, not from the definition. Most applications do not have them and are
+ * testable anyway, so their absence is not reported as a defect here. What gets
+ * reported is a failure of the definition itself:
+ *
+ *   identify   ambiguous (matches several) · unaddressable (position only)
+ *   interact   disabled · readonly · covered by an overlay · off-screen
+ *   observe    acted on, with no state exposed to assert against
+ *
+ * The last one matters most for exploration: an interaction whose outcome cannot
+ * be observed yields no hypothesis to test.
+ *
+ * "Objects" in the definition extends past the DOM — the data dictionary in
+ * `schema.ts` covers the values moving underneath.
+ */
+
+/** What you can do with an element. */
+export type Affordance = 'input' | 'submit' | 'toggle' | 'control' | 'navigation';
+
+export interface InputConstraints {
+  name: string | null;
+  required: boolean;
+  disabled: boolean;
+  readOnly: boolean;
+  /** Current value, truncated. The starting point for any boundary probe. */
+  value: string | null;
+  min: string | null;
+  max: string | null;
+  step: string | null;
+  pattern: string | null;
+  maxLength: number | null;
+  /** For select elements: the option values on offer. */
+  options: string[];
+}
+
 export interface ScannedElement {
   tag: string;
   type: string | null;
   role: string | null;
   accessibleName: string | null;
   testId: string | null;
+  affordance: Affordance;
   /** Selector a generated test should use, best available. */
   suggested: string;
+  /** False when `suggested` matches more than one element on the page. */
+  unique: boolean;
   /** How much a test built on `suggested` can be trusted. */
   stability: 'stable' | 'text-dependent' | 'fragile';
+  /** Populated for inputs, selects and textareas. */
+  constraints: InputConstraints | null;
+  /**
+   * ARIA/DOM attributes that expose this control's state, e.g. `aria-expanded`.
+   * Empty means acting on it produces nothing a test can assert against.
+   */
+  stateAttributes: Record<string, string>;
+  /** Index of the form it belongs to, or null when it is not in one. */
+  formIndex: number | null;
+  /**
+   * Why this element cannot be acted on, or null when it can. Being findable and
+   * being usable are different halves of testability.
+   */
+  blocker: string | null;
 }
 
 export interface TestabilityIssue {
   severity: 'high' | 'medium';
+  kind:
+    | 'ambiguous'
+    | 'unaddressable'
+    | 'no-observable-state'
+    | 'unlabelled-input'
+    | 'unreachable'
+    | 'unscanned-frame'
+    | 'unscanned-shadow-root';
   element: string;
   problem: string;
   suggestion: string;
@@ -23,73 +94,221 @@ export interface PageScan {
   url: string;
   title: string;
   scannedAt: string;
-  counts: { interactive: number; withTestId: number; forms: number; tables: number };
+  counts: {
+    interactive: number;
+    inputs: number;
+    submits: number;
+    stateful: number;
+    /** Addressable but not actionable right now — the interact half. */
+    blocked: number;
+    withTestId: number;
+    forms: number;
+    tables: number;
+  };
+  /** Frame sources present on the page. Not scanned — an admitted blind spot. */
+  frames: string[];
+  /** Custom elements holding an open shadow root. Also not scanned. */
+  shadowHosts: string[];
   interactive: ScannedElement[];
   endpoints: { method: string; path: string; status: number | null }[];
   testability: TestabilityIssue[];
 }
 
-/** Attribute the app uses for test ids; Playwright's default is data-testid. */
-const TEST_ID_ATTR = 'data-testid';
+/** Attributes that carry a control's state, and so make an outcome assertable. */
+const STATE_ATTRIBUTES = [
+  'aria-expanded',
+  'aria-pressed',
+  'aria-checked',
+  'aria-selected',
+  'aria-current',
+  'aria-invalid',
+  'aria-disabled',
+  'aria-busy',
+  'open',
+  'checked',
+  'disabled',
+];
 
 /**
- * Inventories a page's interactive surface and grades how testable it is.
- *
- * This is the missing prerequisite for generating tests: without it an agent
- * invents selectors from a screenshot or from guesswork, which is how generated
- * suites end up full of `.btn:nth-child(3)`. Scan first, then generate against
- * facts.
+ * Names that imply the control flips between two states. Such a control with no
+ * state attribute is a real finding: you can press it and cannot prove anything
+ * happened.
  */
-export async function scanPage(page: Page, options: { within?: string } = {}): Promise<PageScan> {
+const TOGGLE_WORDS = [
+  'show',
+  'hide',
+  'expand',
+  'collapse',
+  'open',
+  'close',
+  'start',
+  'stop',
+  'play',
+  'pause',
+  'mute',
+  'unmute',
+  'enable',
+  'disable',
+  'toggle',
+  'more',
+  'less',
+];
+
+export async function scanPage(
+  page: Page,
+  options: { within?: string; testIdAttribute?: string } = {},
+): Promise<PageScan> {
   const scope = options.within ?? null;
+  const testIdAttr = options.testIdAttribute ?? 'data-testid';
 
   // Everything below runs in the browser. It deliberately contains no named or
   // const-assigned functions: tsx/esbuild rewrites those with a `__name` helper
   // that does not exist in the page, and evaluate fails at runtime.
   const collected = await page.evaluate(
-    ([testIdAttr, scope]: [string, string | null]) => {
+    ([testIdAttr, scope, stateAttributes]: [string, string | null, string[]]) => {
+      const forms = Array.from(document.querySelectorAll('form'));
+
+      // Frames are a blind spot, not an absence. querySelectorAll never crosses
+      // into them, so an app that iframes its real content would otherwise be
+      // reported as a nearly empty page — a wrong answer stated confidently.
+      const frames = Array.from(document.querySelectorAll('iframe, frame')).map(
+        (frame) => frame.getAttribute('src') ?? '(no src)',
+      );
+
+      // Same class of blind spot as frames: querySelectorAll does not descend into
+      // a shadow root, so controls inside web components are invisible here. It is
+      // only the scan that is blind — Playwright locators do pierce open shadow
+      // DOM — but a scan that stays quiet about it implies coverage it lacks.
+      const shadowHosts = Array.from(document.querySelectorAll('*'))
+        .filter((el) => el.shadowRoot !== null)
+        .map((el) => el.tagName.toLowerCase());
+
       return {
         title: document.title,
-        forms: document.querySelectorAll('form').length,
+        forms: forms.length,
+        frames,
+        shadowHosts: [...new Set(shadowHosts)],
         tables: document.querySelectorAll('table').length,
         elements: Array.from(
           (scope === null
             ? document
             : (document.querySelector(scope) ?? document)
           ).querySelectorAll(
-            'button, a[href], input, select, textarea, [role=button], [role=link], [role=tab], [role=checkbox], [contenteditable=true]',
+            'button, a[href], input, select, textarea, [role=button], [role=link], [role=tab], [role=checkbox], [role=switch], [role=menuitem], [contenteditable=true]',
           ),
         )
           .filter((el) => {
+            if ((el as HTMLInputElement).type === 'hidden') return false;
             const rect = el.getBoundingClientRect();
             if (rect.width === 0 && rect.height === 0) return false;
             const style = getComputedStyle(el);
             return style.visibility !== 'hidden' && style.display !== 'none';
           })
-          .map((el) => ({
-            tag: el.tagName.toLowerCase(),
-            type: el.getAttribute('type'),
-            role: el.getAttribute('role'),
-            id: el.getAttribute('id'),
-            testId: el.getAttribute(testIdAttr),
-            ariaLabel: el.getAttribute('aria-label'),
-            labelledByText: el.getAttribute('aria-labelledby')
-              ? (document.getElementById(el.getAttribute('aria-labelledby') ?? '')?.textContent ??
-                null)
-              : null,
-            labelText: el.getAttribute('id')
-              ? (document.querySelector(`label[for="${CSS.escape(el.getAttribute('id') ?? '')}"]`)
-                  ?.textContent ?? null)
-              : null,
-            text: (el as HTMLElement).innerText ?? null,
-            placeholder: el.getAttribute('placeholder'),
-          })),
+          .map((el) => {
+            // Two separate casts rather than an intersection: intersecting the
+            // two narrows `type` to the select-only union and the input checks
+            // below stop compiling.
+            const input = el as HTMLInputElement;
+            const select = el as HTMLSelectElement;
+            const isFormField =
+              el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA';
+
+            const state: Record<string, string> = {};
+            for (const attribute of stateAttributes) {
+              const value = el.getAttribute(attribute);
+              if (value !== null) state[attribute] = value;
+            }
+            // Checkedness is a property, not only an attribute: a checkbox the
+            // user has clicked reports checked=true with no attribute present.
+            if (isFormField && (input.type === 'checkbox' || input.type === 'radio')) {
+              state['checked'] = String(input.checked);
+            }
+
+            const owningForm = el.closest('form');
+
+            // Can it actually be acted on? Identifying an element is only half of
+            // testability; a control that is covered, off-screen or disabled is
+            // addressable and still unusable.
+            const rect = el.getBoundingClientRect();
+            let blocker: string | null = null;
+
+            const centreX = rect.left + rect.width / 2;
+            const centreY = rect.top + rect.height / 2;
+            // Being below the fold is NOT a blocker: Playwright scrolls an element
+            // into view before acting on it. And elementFromPoint only answers for
+            // points inside the viewport — clamping an off-screen centre onto the
+            // edge samples a different element entirely and invents an overlay that
+            // is not there. So occlusion is only judged where it can be observed.
+            const centreInView =
+              centreX >= 0 && centreX < window.innerWidth && centreY >= 0 && centreY < innerHeight;
+
+            if (input.disabled === true) {
+              blocker = 'disabled';
+            } else if (isFormField && input.readOnly === true) {
+              blocker = 'readonly';
+            } else if (centreInView) {
+              // Whatever the browser would actually hand the click to. If that is
+              // not this element or something inside it, a real click lands on an
+              // overlay instead — the classic "cookie banner ate the test".
+              const atPoint = document.elementFromPoint(centreX, centreY);
+              if (atPoint !== null && atPoint !== el && !el.contains(atPoint)) {
+                const covering = atPoint.tagName.toLowerCase();
+                const coveringId = atPoint.getAttribute('id');
+                blocker = `covered by <${covering}${coveringId === null ? '' : `#${coveringId}`}>`;
+              }
+            }
+
+            return {
+              blocker,
+              tag: el.tagName.toLowerCase(),
+              type: el.getAttribute('type'),
+              role: el.getAttribute('role'),
+              id: el.getAttribute('id'),
+              testId: el.getAttribute(testIdAttr),
+              ariaLabel: el.getAttribute('aria-label'),
+              labelledByText: el.getAttribute('aria-labelledby')
+                ? (document.getElementById(el.getAttribute('aria-labelledby') ?? '')?.textContent ??
+                  null)
+                : null,
+              labelText: el.getAttribute('id')
+                ? (document.querySelector(`label[for="${CSS.escape(el.getAttribute('id') ?? '')}"]`)
+                    ?.textContent ?? null)
+                : null,
+              text: (el as HTMLElement).innerText ?? null,
+              placeholder: el.getAttribute('placeholder'),
+              stateAttributes: state,
+              formIndex: owningForm === null ? null : forms.indexOf(owningForm),
+              constraints: isFormField
+                ? {
+                    name: el.getAttribute('name'),
+                    required: el.hasAttribute('required'),
+                    disabled: input.disabled === true,
+                    readOnly: input.readOnly === true,
+                    value: (input.value ?? '').slice(0, 80),
+                    min: el.getAttribute('min'),
+                    max: el.getAttribute('max'),
+                    step: el.getAttribute('step'),
+                    pattern: el.getAttribute('pattern'),
+                    maxLength:
+                      input.maxLength !== undefined && input.maxLength >= 0
+                        ? input.maxLength
+                        : null,
+                    options:
+                      el.tagName === 'SELECT'
+                        ? Array.from(select.options ?? [])
+                            .slice(0, 25)
+                            .map((option) => option.value)
+                        : [],
+                  }
+                : null,
+            };
+          }),
       };
     },
-    [TEST_ID_ATTR, scope] as [string, string | null],
+    [testIdAttr, scope, STATE_ATTRIBUTES] as [string, string | null, string[]],
   );
 
-  const interactive: ScannedElement[] = collected.elements.map((raw) => {
+  const partial = collected.elements.map((raw) => {
     const accessible =
       raw.ariaLabel?.trim() ||
       raw.labelledByText?.trim() ||
@@ -103,39 +322,50 @@ export async function scanPage(page: Page, options: { within?: string } = {}): P
     const hasStableId =
       raw.id !== null && raw.id !== '' && !/^[0-9]|:r[0-9a-z]+:|^ember|^ext-gen/i.test(raw.id);
 
-    const el = { ...raw, accessibleName: accessible, hasStableId };
+    const role = raw.role ?? defaultRole(raw.tag, raw.type);
 
     let suggested: string;
     let stability: ScannedElement['stability'];
 
-    if (el.testId) {
-      suggested = `getByTestId('${el.testId}')`;
+    if (raw.testId) {
+      suggested = `getByTestId('${raw.testId}')`;
       stability = 'stable';
-    } else if (el.hasStableId && el.id) {
-      // A hand-written id is not a test id, but it is not positional either.
-      suggested = `locator('#${el.id}')`;
+    } else if (hasStableId && raw.id) {
+      // A hand-written id is not a test id, but it is not positional either, and
+      // in most codebases it is the best hook that actually exists.
+      suggested = `locator('#${raw.id}')`;
       stability = 'stable';
-    } else if (el.accessibleName) {
-      const role = el.role ?? defaultRole(el.tag, el.type);
+    } else if (accessible) {
       suggested = role
-        ? `getByRole('${role}', { name: ${JSON.stringify(el.accessibleName)} })`
-        : `getByText(${JSON.stringify(el.accessibleName)})`;
+        ? `getByRole('${role}', { name: ${JSON.stringify(accessible)} })`
+        : `getByText(${JSON.stringify(accessible)})`;
       stability = 'text-dependent';
     } else {
-      suggested = `locator('${el.tag}')`;
+      suggested = `locator('${raw.tag}')`;
       stability = 'fragile';
     }
 
     return {
-      tag: el.tag,
-      type: el.type,
-      role: el.role,
-      accessibleName: el.accessibleName,
-      testId: el.testId,
-      suggested,
-      stability,
+      raw,
+      element: {
+        tag: raw.tag,
+        type: raw.type,
+        role: raw.role,
+        accessibleName: accessible,
+        testId: raw.testId,
+        affordance: affordanceOf(raw.tag, raw.type, role, accessible),
+        suggested,
+        unique: true,
+        stability,
+        constraints: raw.constraints,
+        stateAttributes: raw.stateAttributes,
+        formIndex: raw.formIndex,
+        blocker: raw.blocker,
+      } satisfies ScannedElement,
     };
   });
+
+  const interactive = markUniqueness(partial.map(({ element }) => element));
 
   return {
     url: page.url(),
@@ -143,14 +373,67 @@ export async function scanPage(page: Page, options: { within?: string } = {}): P
     scannedAt: new Date().toISOString(),
     counts: {
       interactive: interactive.length,
+      inputs: interactive.filter((el) => el.affordance === 'input').length,
+      submits: interactive.filter((el) => el.affordance === 'submit').length,
+      stateful: interactive.filter((el) => Object.keys(el.stateAttributes).length > 0).length,
+      blocked: interactive.filter((el) => el.blocker !== null).length,
       withTestId: interactive.filter((el) => el.testId !== null).length,
       forms: collected.forms,
       tables: collected.tables,
     },
+    frames: collected.frames,
+    shadowHosts: collected.shadowHosts,
     interactive,
     endpoints: [],
-    testability: auditTestability(interactive),
+    testability: auditTestability(interactive, collected.frames, collected.shadowHosts),
   };
+}
+
+/**
+ * Flags every element whose suggested selector is shared with another.
+ *
+ * Ambiguity is the failure people actually hit: two controls with the same role
+ * and name make `getByRole` throw a strict-mode violation at runtime, test ids or
+ * not. Pure and exported so it can be unit-tested — it lived inside `scanPage`
+ * until a surviving mutation showed that blanking it left the suite green,
+ * because the only test covering it needed a browser and the mutation runner does
+ * not start one.
+ */
+export function markUniqueness<T extends { suggested: string }>(
+  elements: T[],
+): (T & { unique: boolean })[] {
+  const occurrences = new Map<string, number>();
+  for (const element of elements) {
+    occurrences.set(element.suggested, (occurrences.get(element.suggested) ?? 0) + 1);
+  }
+  return elements.map((element) => ({
+    ...element,
+    unique: (occurrences.get(element.suggested) ?? 0) === 1,
+  }));
+}
+
+function affordanceOf(
+  tag: string,
+  type: string | null,
+  role: string | null,
+  name: string | null,
+): Affordance {
+  if (tag === 'a') return 'navigation';
+  if (type === 'submit' || (tag === 'button' && (type === null || type === 'submit'))) {
+    // A <button> with no type inside a form submits it, which is the single most
+    // consequential default in HTML and the one a policy needs to know about.
+    if (type === 'submit') return 'submit';
+  }
+  if (tag === 'input' || tag === 'select' || tag === 'textarea') {
+    if (type === 'checkbox' || type === 'radio') return 'toggle';
+    if (type === 'submit' || type === 'button') return 'submit';
+    return 'input';
+  }
+  if (role === 'checkbox' || role === 'switch' || role === 'tab') return 'toggle';
+  if (name !== null && TOGGLE_WORDS.some((word) => name.toLowerCase().includes(word))) {
+    return 'toggle';
+  }
+  return 'control';
 }
 
 function defaultRole(tag: string, type: string | null): string | null {
@@ -167,24 +450,111 @@ function defaultRole(tag: string, type: string | null): string | null {
   return null;
 }
 
-/** Turns a scan into the testability findings a QE would raise with the team. */
-export function auditTestability(elements: ScannedElement[]): TestabilityIssue[] {
+/**
+ * Findings a QE would actually raise. Note what is *not* here: "this element has
+ * no test id". That is the normal state of most applications and is not, by
+ * itself, a problem worth anyone's attention.
+ */
+export function auditTestability(
+  elements: ScannedElement[],
+  frames: string[] = [],
+  shadowHosts: string[] = [],
+): TestabilityIssue[] {
   const issues: TestabilityIssue[] = [];
 
+  // Reported first because it bounds everything below it: if the real content
+  // lives in a frame, a clean report on the outer document means very little.
+  for (const src of frames) {
+    issues.push({
+      severity: 'medium',
+      kind: 'unscanned-frame',
+      element: `<iframe src="${src}">`,
+      problem:
+        'This scan does not cross into frames, so anything inside it is unexamined. A clean result above says nothing about this content.',
+      suggestion:
+        'Scan the frame URL directly, or use frameLocator() in tests and treat this area as uncovered until then.',
+    });
+  }
+
+  for (const host of shadowHosts) {
+    issues.push({
+      severity: 'medium',
+      kind: 'unscanned-shadow-root',
+      element: `<${host}>`,
+      problem:
+        'This element holds an open shadow root, and the scan does not descend into it. Controls inside are unexamined.',
+      suggestion:
+        'Playwright locators pierce open shadow DOM, so tests can reach these — but treat the area as uncovered until something has actually looked.',
+    });
+  }
+
   for (const el of elements) {
+    const describe = `<${el.tag}${el.type === null ? '' : ` type=${el.type}`}>${
+      el.accessibleName === null ? '' : ` "${el.accessibleName}"`
+    }`;
+
+    if (!el.unique) {
+      issues.push({
+        severity: 'high',
+        kind: 'ambiguous',
+        element: describe,
+        problem: `More than one element matches ${el.suggested}. A test using it fails on strict-mode violation, not on the behaviour it meant to check.`,
+        suggestion:
+          'Disambiguate by scoping to a container, or give this one a distinguishing name.',
+      });
+      continue;
+    }
+
+    // Before the generic case: an unlabelled input is always also positionally
+    // addressed, so the generic branch would swallow it and the more specific,
+    // more actionable finding would never be reachable.
+    if (el.affordance === 'input' && el.accessibleName === null) {
+      issues.push({
+        severity: 'high',
+        kind: 'unlabelled-input',
+        element: describe,
+        problem: 'An input with no label cannot be filled reliably, nor read by anyone using AT.',
+        suggestion:
+          'Associate a <label for="...">, or add aria-label, so the field is addressable and announced.',
+      });
+      continue;
+    }
+
     if (el.stability === 'fragile') {
       issues.push({
         severity: 'high',
-        element: `<${el.tag}${el.type ? ` type=${el.type}` : ''}>`,
-        problem: 'No test id, no id, and no accessible name — nothing stable to target.',
-        suggestion: `Add ${TEST_ID_ATTR}, or an aria-label so the element is reachable by role.`,
+        kind: 'unaddressable',
+        element: describe,
+        problem: 'No accessible name, no id and no test id — only reachable by position.',
+        suggestion: 'Give it an accessible name (aria-label, or real label text).',
       });
-    } else if (el.stability === 'text-dependent') {
+      continue;
+    }
+
+    // The interact half of the definition. `disabled` and `readonly` are usually
+    // deliberate product states rather than defects, so only the cases that
+    // genuinely surprise a test author are raised.
+    if (el.blocker !== null && el.blocker !== 'disabled' && el.blocker !== 'readonly') {
+      issues.push({
+        severity: 'high',
+        kind: 'unreachable',
+        element: describe,
+        problem: `Addressable but not actionable: ${el.blocker}. A click resolves to something else, so the test fails somewhere far from the cause.`,
+        suggestion:
+          'Dismiss or scope out the overlay, scroll it into view first, or fix the stacking so the control receives its own clicks.',
+      });
+      continue;
+    }
+
+    if (el.affordance === 'toggle' && Object.keys(el.stateAttributes).length === 0) {
       issues.push({
         severity: 'medium',
-        element: `<${el.tag}> "${el.accessibleName}"`,
-        problem: 'Only targetable by visible text, so the test breaks on a copy or locale change.',
-        suggestion: `Add ${TEST_ID_ATTR} to decouple the test from wording.`,
+        kind: 'no-observable-state',
+        element: describe,
+        problem:
+          'This control changes state but exposes none: no aria-pressed, aria-expanded, aria-checked or equivalent. You can act on it and cannot assert the result.',
+        suggestion:
+          'Expose the state with the matching ARIA attribute, so the outcome is observable rather than inferred from styling.',
       });
     }
   }
@@ -198,29 +568,86 @@ export function formatScan(scan: PageScan): string {
     `${scan.title}`,
     `${scan.url}`,
     '',
-    `Interactive elements: ${counts.interactive} (${counts.withTestId} with ${TEST_ID_ATTR})`,
-    `Forms: ${counts.forms}   Tables: ${counts.tables}`,
+    `Interactive: ${counts.interactive}  (${counts.inputs} input, ${counts.submits} submit, ${counts.stateful} expose state, ${counts.blocked} blocked)`,
+    `Forms: ${counts.forms}   Tables: ${counts.tables}   Test ids: ${counts.withTestId}`,
     '',
   ];
 
+  if (scan.frames.length > 0) {
+    lines.push(
+      `Frames: ${scan.frames.length} NOT scanned — content inside is unexamined:`,
+      ...scan.frames.map((src) => `  ${src}`),
+      '',
+    );
+  }
+
+  if (scan.shadowHosts.length > 0) {
+    lines.push(
+      `Shadow roots: ${scan.shadowHosts.length} host(s) NOT scanned — controls inside are unexamined:`,
+      ...scan.shadowHosts.map((host) => `  <${host}>`),
+      '',
+    );
+  }
+
+  const ambiguous = scan.interactive.filter((el) => !el.unique).length;
   const byStability = { stable: 0, 'text-dependent': 0, fragile: 0 };
   for (const el of scan.interactive) byStability[el.stability] += 1;
   lines.push(
-    `Selector quality: ${byStability.stable} stable, ${byStability['text-dependent']} text-dependent, ${byStability.fragile} fragile`,
+    `Addressability: ${byStability.stable} stable, ${byStability['text-dependent']} by name, ${byStability.fragile} positional, ${ambiguous} ambiguous`,
     '',
   );
 
-  if (scan.testability.length > 0) {
-    lines.push(`Testability findings (${scan.testability.length}):`);
-    for (const issue of scan.testability.slice(0, 20)) {
-      lines.push(`  [${issue.severity}] ${issue.element}`, `      ${issue.problem}`);
+  const inputs = scan.interactive.filter((el) => el.constraints !== null);
+  if (inputs.length > 0) {
+    lines.push('Inputs — the surface a boundary probe works on:');
+    for (const el of inputs.slice(0, 20)) {
+      const c = el.constraints;
+      if (c === null) continue;
+      const bounds = [
+        c.required ? 'required' : null,
+        c.min === null ? null : `min=${c.min}`,
+        c.max === null ? null : `max=${c.max}`,
+        c.maxLength === null ? null : `maxlength=${c.maxLength}`,
+        c.pattern === null ? null : `pattern=${c.pattern}`,
+        c.disabled ? 'disabled' : null,
+        c.readOnly ? 'readonly' : null,
+        c.options.length > 0 ? `options=${c.options.length}` : null,
+      ]
+        .filter((entry) => entry !== null)
+        .join(' ');
+      const label = el.accessibleName ?? c.name ?? '(unlabelled)';
+      lines.push(
+        `  ${el.suggested}  "${label}"${bounds === '' ? '' : `  [${bounds}]`}${
+          c.value === '' || c.value === null ? '' : `  = ${c.value}`
+        }`,
+      );
     }
-    if (scan.testability.length > 20) {
-      lines.push(`  … and ${scan.testability.length - 20} more`);
-    }
-  } else {
-    lines.push('Testability findings: none — every element has a stable target.');
+    lines.push('');
   }
 
-  return lines.join('\n');
+  const stateful = scan.interactive.filter((el) => Object.keys(el.stateAttributes).length > 0);
+  if (stateful.length > 0) {
+    lines.push('Observable state — what an interaction can be asserted against:');
+    for (const el of stateful.slice(0, 20)) {
+      const pairs = Object.entries(el.stateAttributes)
+        .map(([key, value]) => `${key}=${value}`)
+        .join(' ');
+      lines.push(`  ${el.accessibleName ?? el.suggested}  ${pairs}`);
+    }
+    lines.push('');
+  }
+
+  if (scan.testability.length > 0) {
+    lines.push('Testability findings:');
+    for (const issue of scan.testability.slice(0, 20)) {
+      lines.push(`  [${issue.severity}] ${issue.kind}  ${issue.element}`, `      ${issue.problem}`);
+    }
+    if (scan.testability.length > 20) {
+      lines.push(`  ... and ${scan.testability.length - 20} more`);
+    }
+  } else {
+    lines.push('Testability findings: none — every control is uniquely addressable.');
+  }
+
+  return lines.join('\n').trimEnd();
 }
