@@ -130,6 +130,36 @@ const MUTATIONS: Mutation[] = [
     replace: "severity: 'medium',",
     breaks: 'An untargetable element should be a high-severity finding',
   },
+  {
+    file: 'src/tools/page-scanner.ts',
+    find: 'unique: (occurrences.get(element.suggested) ?? 0) === 1,',
+    replace: 'unique: true,',
+    breaks: 'A selector matching several elements must be reported as ambiguous',
+  },
+  {
+    file: 'src/tools/page-scanner.ts',
+    find: "if (el.affordance === 'toggle' && Object.keys(el.stateAttributes).length === 0) {",
+    replace: 'if (false) {',
+    breaks: 'A toggle exposing no state must be reported as unobservable',
+  },
+  {
+    file: 'src/tools/schema.ts',
+    find: "if (type === 'null') acc.nullable = true;",
+    replace: '// nullability dropped',
+    breaks: 'A field observed as null must be reported nullable',
+  },
+  {
+    file: 'src/qe/exploration-policy.ts',
+    find: 'if (control.isSubmit && !policy.allowFormSubmit) {',
+    replace: 'if (false) {',
+    breaks: 'A read-only environment must refuse form submission',
+  },
+  {
+    file: 'src/qe/exploration-policy.ts',
+    find: 'captureBodies: false,',
+    replace: 'captureBodies: true,',
+    breaks: 'Payload bodies must not be written to disk outside local',
+  },
 ];
 
 const PLAYWRIGHT = resolve('node_modules/@playwright/test/cli.js');

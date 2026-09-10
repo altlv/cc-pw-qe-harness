@@ -9,6 +9,42 @@ and the user has pushed their own squashed launch commit. **They own every commi
 push now: do not commit unprompted, and never push.** Reach a coherent point, say what
 it would contain, and let them decide.
 
+## Current thread: the exploration loop
+
+The user's framing, and the organising principle for the work in flight:
+
+> Exploration is **interaction, observation and hypothesis testing**. Scan logging and
+> understanding page structure are tooling that supports it. Session reports and
+> heuristics are different tools that also support it. All are needed.
+
+And their definition of testability, which the scanner is now built around:
+
+> the ability to **identify** and **interact with** the available elements and objects,
+> **easily enough**.
+
+Test ids were inherited from the tooling, not from that definition. Most apps do not
+have them and are testable anyway, so their absence is **not** a finding. What is:
+ambiguous (matches several), unaddressable (position only), unreachable (covered,
+disabled), unlabelled input, and no observable state.
+
+Stage status is tracked as E1–E7 in `TODO.md`. E1 observe and E2 rules of engagement
+are done; **E3 element identity is the keystone and is next** — one scorer answering
+"are these two observations the same element?" serves self-healing, fuzzy matching,
+drift detection and state-diffing, which are four names for one primitive.
+
+## Uncommitted at handoff (14 paths, all green)
+
+| Area | Files |
+| --- | --- |
+| Observation | `src/tools/{schema,stack,probe}.ts`, rewritten `src/tools/page-scanner.ts`, `src/cli/scan.ts` |
+| Rules of engagement | `src/qe/exploration-policy.ts`, `.claude/skills/exploratory-session/references/session-start-checklist.md`, body gating in `src/capture/network.ts` |
+| Alignment | `.claude/skills/testability-audit/SKILL.md` rewritten to match the scanner |
+| Process | `docs/definition-of-done.md` — DoD for extending the harness, every item traced to a real failure |
+| Tests | `tests/unit/{schema,exploration-policy}.test.ts`, rewritten testability block in `tests/unit/agents.test.ts` |
+
+Suggested single commit: _"Re-centre the scanner on identify and interact, and put
+rules of engagement around exploration."_
+
 ## Agreed priority
 
 **D → B → A → C1 → E.** D (goose inheritance) done. B (honesty/accountability) largely
@@ -29,7 +65,8 @@ One runner covers all of it: Playwright only starts a browser when a test asks f
 
 ## What is proven (direct evidence)
 
-- 123 local tests + 14 external. Gate PASS. `npm run check` clean.
+- 159 local tests + 22 external, re-run at the 2026-09-10 end gate. Gate PASS.
+  `assert-quality` 0 findings. `npm run check` clean.
 - **Mutation score 17/17** — `npm run mutate` breaks seventeen rules the harness
   claims to enforce and the suite catches every one.
 - **The triage agent runs against the live API.** Classified a 403 failure as
@@ -45,13 +82,17 @@ One runner covers all of it: Playwright only starts a browser when a test asks f
 
 ## What is NOT proven — do not claim otherwise
 
-- **Only two of seven roles have ever run** (`testability-reviewer`, plus the triage
-  agent which is not in `roles.ts`). The five coder/explorer roles are unexecuted.
-- **No role has written code that was then run.** `testability-reviewer` is read-only.
-  The real test of `e2e-coder` / `api-coder` is a spec that passes and survives
-  `assert-quality`.
-- **The CI workflow has run once and failed**, then was fixed and confirmed green by
-  the user. It has not run since the integration level and roles landed.
+- **Two of seven roles have run** (`testability-reviewer`, `api-coder`), plus the
+  triage agent, which is not in `roles.ts`. `e2e-coder`, `unit-test-engineer`,
+  `integration-tester`, `exploratory-tester` and `investigator` are unexecuted.
+- **No role has written a _browser_ spec.** `api-coder` wrote a passing API spec that
+  clears `assert-quality`, so the write-and-run path is proven at API level only. The
+  equivalent test for `e2e-coder` has not been done.
+- **No exploratory session has ever been run**, so the skill, checklist and role are
+  untested in practice. This is the biggest unproven claim in the repo.
+- **Self-healing does not exist** in any form. Blocked on E3.
+- **CI has not run since the observation layer landed.** Last green run was
+  34446271026, on the previous commit.
 - **No skill has been invoked by name.** The roles reference skills in their prompts;
   whether that changes behaviour is untested.
 
@@ -75,13 +116,18 @@ file at all and documented variables were silently ignored.
 
 ## Next actions, in order
 
-1. **Validate a writing role** — `api-coder` against `apps/fakerestapi`, or
-   `e2e-coder` against `countdown-timer`. Success means: the spec it writes runs,
-   passes, and clears `assert-quality`. Needs a working key.
-2. **Recipes** — port the multi-phase format now the agents exist.
-3. **Exploratory session** — run the role for real and keep the debrief.
-4. **CI re-run** before the next launch commit.
-5. **LICENSE** — the user's decision. Public repo still has none.
+1. **The user's call on the 14 uncommitted paths.** Nothing else should pile on top.
+2. **E3 — element identity and the matcher.** The keystone; key-free. Store redundant
+   identity per element (role, name, testid, id, tag, type, ancestors, sibling index,
+   nearby text, constraints) and score two observations for sameness. Self-healing,
+   fuzzy matching, drift detection and state-diffing all reduce to this.
+3. **E4 — heuristics reference**, trigger→move pairs under `exploratory-session`.
+4. **E5 — the driver**, then **E6** report enforcement, then **E7** a real session.
+5. **Recipes** — port the multi-phase format now the agents exist.
+6. **LICENSE** — the user's decision. Public repo still has none.
+
+Done since the last handoff, do not redo: a writing role is validated (`api-coder`
+wrote `apps/fakerestapi/tests/authors.api.spec.ts`); CI ran green (34446271026).
 
 ## What must not be assumed
 
@@ -91,3 +137,18 @@ file at all and documented variables were silently ignored.
 - Write invisible characters as escapes, and use a script file rather than a shell
   heredoc for anything containing escapes. Heredocs have corrupted files three times.
 - A green suite is not evidence the assertions are good — run `npm run mutate`.
+
+## Traps found the hard way, this session
+
+- **A detector that cries wolf is worse than none.** Two of ours did. Always run a new
+  rule against a known-good page and confirm silence, not just against the case you
+  built it for. `docs/definition-of-done.md` item 3.
+- **`document.elementFromPoint` only answers inside the viewport.** Clamping an
+  off-screen centre onto the edge samples a different element and invents an overlay.
+  Off-screen is not a blocker anyway: Playwright scrolls before acting.
+- **No named or const-assigned functions inside `page.evaluate`.** tsx/esbuild rewrites
+  them to call a `__name` helper that does not exist in the page; the failure is an
+  opaque `ReferenceError`. Keep evaluate bodies inline.
+- **A static value can be a decoy.** The countdown display ships in the HTML already
+  reading `01:01:12` — exactly what the init script sets — so asserting it proves
+  nothing about whether the app is alive.
