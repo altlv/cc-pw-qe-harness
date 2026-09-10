@@ -168,6 +168,10 @@ test.describe('testability grading', () => {
       issue?.kind,
       'no name, no id and no test id leaves only positional selectors, which is the fragile case worth flagging',
     ).toBe('unaddressable');
+    expect(
+      issue?.severity,
+      'an element reachable only by position cannot be worked around at test level, so it is not a nice-to-have',
+    ).toBe('high');
   });
 
   test('should raise a high finding for an input with no label', () => {

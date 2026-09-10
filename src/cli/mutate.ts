@@ -5,7 +5,10 @@ import { promisify } from 'node:util';
 
 const run = promisify(execFile);
 
-const PROJECTS = ['--project=unit', '--project=integration'];
+// The harness project is included because the detection passes can only be tested
+// against a real DOM; leaving it out let a mutation survive that the suite would
+// have caught, which is precisely the blind spot mutation testing exists to find.
+const PROJECTS = ['--project=unit', '--project=integration', '--project=harness'];
 
 /**
  * Mutation testing for the harness's own logic.
@@ -159,6 +162,42 @@ const MUTATIONS: Mutation[] = [
     find: 'captureBodies: false,',
     replace: 'captureBodies: true,',
     breaks: 'Payload bodies must not be written to disk outside local',
+  },
+  {
+    file: 'apps/targets.ts',
+    find: 'if (has(EFFECT_TAGS.writes) && !policy.allowWrites) {',
+    replace: 'if (false) {',
+    breaks: 'A writing test must be refused on an environment that forbids writes',
+  },
+  {
+    file: 'apps/targets.ts',
+    find: "if (policy.environment === 'local') return { allowed: true };",
+    replace: 'return { allowed: true };',
+    breaks: 'An untagged test must be treated as unknown, not harmless, off local',
+  },
+  {
+    file: 'src/tools/interstitial.ts',
+    find: "call.path.includes('/cdn-cgi/challenge-platform') ||",
+    replace: 'false ||',
+    breaks: 'A bot challenge must be reported rather than scanned as if it were the app',
+  },
+  {
+    file: 'src/tools/interstitial.ts',
+    find: 'if (observed.passwords > 0 && observed.interactive < 15) {',
+    replace: 'if (false) {',
+    breaks: 'A sign-in page must not be mistaken for the application behind it',
+  },
+  {
+    file: 'src/tools/reveal.ts',
+    find: 'if (rect.right <= 0 && rect.left < -1_000) continue;',
+    replace: '// visually-hidden check removed',
+    breaks: 'A control parked off-screen must count as hidden, or focus reveals nothing',
+  },
+  {
+    file: 'apps/targets.ts',
+    find: 'return new RegExp(EFFECT_TAGS.readOnly);',
+    replace: 'return undefined;',
+    breaks: 'A production run must be narrowed to read-only tests, not left unfiltered',
   },
 ];
 

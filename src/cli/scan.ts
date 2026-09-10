@@ -12,6 +12,9 @@ if (url === undefined) {
   console.error('usage: npm run scan -- <url> [output.json]');
   console.error('  SCAN_WITHIN=<selector>  scope the element scan to one region');
   console.error('  EXPLORE_ENV=local|test|prod  rules of engagement (default local)');
+  console.error(
+    '  SCAN_DEEP=1                  hover, keyboard, responsive and late-arrival passes',
+  );
   process.exit(2);
 }
 
@@ -32,7 +35,10 @@ try {
   // domcontentloaded, not load: a client-rendered app may not fire load in a
   // useful window, and the probe settles the network itself afterwards.
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  const result = await probePage(page, network, within !== undefined ? { within } : {});
+  const result = await probePage(page, network, {
+    ...(within !== undefined ? { within } : {}),
+    ...(process.env.SCAN_DEEP === '1' ? { hover: true } : {}),
+  });
 
   console.log(formatProbe(result));
 

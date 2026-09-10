@@ -52,7 +52,15 @@ export interface StackProfile {
 }
 
 /** Frameworks that build the DOM themselves, so the served HTML is a shell. */
-const CLIENT_RENDERING_FRAMEWORKS = ['React', 'Vue', 'Angular', 'AngularJS', 'Svelte'];
+const CLIENT_RENDERING_FRAMEWORKS = [
+  'React',
+  'Vue',
+  'Angular',
+  'AngularJS',
+  'Svelte',
+  'Polymer',
+  'Lit',
+];
 
 /** Frameworks that render on the server and then hydrate. */
 const META_FRAMEWORKS = ['Next.js', 'Nuxt', 'Remix', 'SvelteKit'];
@@ -133,6 +141,23 @@ export async function detectStack(page: Page): Promise<StackProfile> {
     if ('__remixContext' in win) {
       signals.push({ name: 'Remix', evidence: 'window.__remixContext', version: null });
     }
+    // Polymer and Lit ship unmistakable markers; the shop reported "no frameworks"
+    // while <dom-module> and <custom-style> sat in its own DOM.
+    if ('Polymer' in win || document.querySelector('dom-module, custom-style') !== null) {
+      signals.push({
+        name: 'Polymer',
+        evidence: 'window.Polymer / <dom-module>',
+        version: null,
+      });
+    }
+    if (
+      'litElementVersions' in win ||
+      'litHtmlVersions' in win ||
+      'reactiveElementVersions' in win
+    ) {
+      signals.push({ name: 'Lit', evidence: 'window.litElementVersions', version: null });
+    }
+
     if (document.querySelector('[data-sveltekit-preload-data]') !== null) {
       signals.push({
         name: 'SvelteKit',
@@ -294,7 +319,7 @@ export function stackAdvice(profile: StackProfile): string[] {
   }
   if (profile.webComponents.shadowRoots > 0) {
     advice.push(
-      'Open shadow roots present. Playwright locators pierce open shadow DOM, but CSS descendant selectors written by hand will not.',
+      'Open shadow roots present, and the scan walks into them, so the controls listed above include ones inside web components. Playwright locators pierce open shadow DOM too — but a CSS descendant chain written by hand will not cross the boundary, and a closed root cannot be reached at all.',
     );
   }
 

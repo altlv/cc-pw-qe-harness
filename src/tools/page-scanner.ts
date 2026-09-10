@@ -166,6 +166,9 @@ export async function scanPage(
   // that does not exist in the page, and evaluate fails at runtime.
   const collected = await page.evaluate(
     ([testIdAttr, scope, stateAttributes]: [string, string | null, string[]]) => {
+      const SELECTOR =
+        'button, a[href], input, select, textarea, [role=button], [role=link], [role=tab], [role=checkbox], [role=switch], [role=menuitem], [contenteditable=true]';
+
       const forms = Array.from(document.querySelectorAll('form'));
 
       // Frames are a blind spot, not an absence. querySelectorAll never crosses
@@ -175,13 +178,32 @@ export async function scanPage(
         (frame) => frame.getAttribute('src') ?? '(no src)',
       );
 
-      // Same class of blind spot as frames: querySelectorAll does not descend into
-      // a shadow root, so controls inside web components are invisible here. It is
-      // only the scan that is blind — Playwright locators do pierce open shadow
-      // DOM — but a scan that stays quiet about it implies coverage it lacks.
-      const shadowHosts = Array.from(document.querySelectorAll('*'))
-        .filter((el) => el.shadowRoot !== null)
-        .map((el) => el.tagName.toLowerCase());
+      // querySelectorAll does not descend into a shadow root, so a Web Components
+      // app looks like an empty page. Declaring that as a blind spot was honest and
+      // useless: the Polymer shop reported zero interactive elements while being a
+      // working storefront. So walk the open roots.
+      //
+      // Iterative rather than recursive on purpose — a named helper here would be
+      // rewritten to call the __name shim that does not exist in page context.
+      const shadowHosts: string[] = [];
+      const searchRoots: (Document | ShadowRoot | Element)[] = [
+        scope === null ? document : (document.querySelector(scope) ?? document),
+      ];
+      const collected: Element[] = [];
+
+      for (let index = 0; index < searchRoots.length; index += 1) {
+        const root = searchRoots[index];
+        if (root === undefined) continue;
+
+        for (const el of Array.from(root.querySelectorAll(SELECTOR))) collected.push(el);
+
+        for (const el of Array.from(root.querySelectorAll('*'))) {
+          if (el.shadowRoot !== null) {
+            shadowHosts.push(el.tagName.toLowerCase());
+            searchRoots.push(el.shadowRoot);
+          }
+        }
+      }
 
       return {
         title: document.title,
@@ -189,14 +211,7 @@ export async function scanPage(
         frames,
         shadowHosts: [...new Set(shadowHosts)],
         tables: document.querySelectorAll('table').length,
-        elements: Array.from(
-          (scope === null
-            ? document
-            : (document.querySelector(scope) ?? document)
-          ).querySelectorAll(
-            'button, a[href], input, select, textarea, [role=button], [role=link], [role=tab], [role=checkbox], [role=switch], [role=menuitem], [contenteditable=true]',
-          ),
-        )
+        elements: collected
           .filter((el) => {
             if ((el as HTMLInputElement).type === 'hidden') return false;
             const rect = el.getBoundingClientRect();
@@ -250,7 +265,17 @@ export async function scanPage(
               // Whatever the browser would actually hand the click to. If that is
               // not this element or something inside it, a real click lands on an
               // overlay instead — the classic "cookie banner ate the test".
-              const atPoint = document.elementFromPoint(centreX, centreY);
+              //
+              // elementFromPoint stops at a shadow host, so on a Web Components app
+              // every control reported as "covered by" its own container. Descend
+              // through each root at the same point to reach what is really on top.
+              let atPoint = document.elementFromPoint(centreX, centreY);
+              while (atPoint !== null && atPoint.shadowRoot !== null) {
+                const deeper = atPoint.shadowRoot.elementFromPoint(centreX, centreY);
+                if (deeper === null || deeper === atPoint) break;
+                atPoint = deeper;
+              }
+
               if (atPoint !== null && atPoint !== el && !el.contains(atPoint)) {
                 const covering = atPoint.tagName.toLowerCase();
                 const coveringId = atPoint.getAttribute('id');
@@ -462,8 +487,10 @@ export function auditTestability(
 ): TestabilityIssue[] {
   const issues: TestabilityIssue[] = [];
 
-  // Reported first because it bounds everything below it: if the real content
-  // lives in a frame, a clean report on the outer document means very little.
+  // Frames still bound everything below them. Shadow roots no longer do: open
+  // roots are walked, so their controls appear in the inventory above rather than
+  // as a caveat. A *closed* root cannot be detected at all, let alone entered,
+  // which is a limit worth knowing but not one we can report per element.
   for (const src of frames) {
     issues.push({
       severity: 'medium',
@@ -476,22 +503,31 @@ export function auditTestability(
     });
   }
 
-  for (const host of shadowHosts) {
-    issues.push({
-      severity: 'medium',
-      kind: 'unscanned-shadow-root',
-      element: `<${host}>`,
-      problem:
-        'This element holds an open shadow root, and the scan does not descend into it. Controls inside are unexamined.',
-      suggestion:
-        'Playwright locators pierce open shadow DOM, so tests can reach these — but treat the area as uncovered until something has actually looked.',
-    });
-  }
+  // Open shadow roots are walked, so their controls are in the inventory rather
+  // than behind a caveat, and `shadowHosts` is now a fact about the page's
+  // construction instead of a finding. It stays in the scan output because it
+  // changes how selectors behave: hand-written CSS descendant chains do not cross
+  // a shadow boundary even though Playwright's own engines do.
+  void shadowHosts;
 
   for (const el of elements) {
     const describe = `<${el.tag}${el.type === null ? '' : ` type=${el.type}`}>${
       el.accessibleName === null ? '' : ` "${el.accessibleName}"`
     }`;
+
+    // Order matters. A nameless control that is also duplicated is duplicated
+    // *because* it is nameless, so the actionable finding is the missing name.
+    // Ambiguity is reported for elements that do have a name and still collide.
+    if (el.stability === 'fragile' && el.affordance !== 'input') {
+      issues.push({
+        severity: 'high',
+        kind: 'unaddressable',
+        element: describe,
+        problem: 'No accessible name, no id and no test id — only reachable by position.',
+        suggestion: 'Give it an accessible name (aria-label, or real label text).',
+      });
+      continue;
+    }
 
     if (!el.unique) {
       issues.push({
@@ -583,8 +619,10 @@ export function formatScan(scan: PageScan): string {
 
   if (scan.shadowHosts.length > 0) {
     lines.push(
-      `Shadow roots: ${scan.shadowHosts.length} host(s) NOT scanned — controls inside are unexamined:`,
+      `Shadow roots: ${scan.shadowHosts.length} open host(s), walked — their controls are included above:`,
       ...scan.shadowHosts.map((host) => `  <${host}>`),
+      '  A hand-written CSS descendant chain will not cross these boundaries, though',
+      "  Playwright's own selector engines do. A closed root cannot be detected at all.",
       '',
     );
   }
