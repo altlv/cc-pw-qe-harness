@@ -140,6 +140,36 @@ const MUTATIONS: Mutation[] = [
     breaks: 'A selector matching several elements must be reported as ambiguous',
   },
   {
+    file: 'src/tools/identity.ts',
+    find: '  if (/^:r[0-9a-z]+:$/i.test(id)) return false;',
+    replace: '  // generated-id check removed',
+    breaks: 'A framework-generated id must not count as identity',
+  },
+  {
+    file: 'src/tools/identity.ts',
+    find: '  const total = Math.max(weighted, floor);',
+    replace: '  const total = weighted;',
+    breaks: 'A decisive signal must carry a match, not be outvoted by weak disagreements',
+  },
+  {
+    file: 'src/tools/identity.ts',
+    find: '    if (usedBefore.has(candidate.beforeIndex) || usedAfter.has(candidate.afterIndex))',
+    replace: '    if (false)',
+    breaks: 'One element must never be matched to two',
+  },
+  {
+    file: 'src/tools/identity.ts',
+    find: '  if (result.confident && result.score >= threshold) {',
+    replace: '  if (result.score >= threshold) {',
+    breaks: 'Pairing must require confidence, not merely a score above the threshold',
+  },
+  {
+    file: 'src/tools/identity.ts',
+    find: "  add('name', bothHave(nameBefore, nameAfter), namesMatch);",
+    replace: "  add('name', false, namesMatch);",
+    breaks: 'The accessible name must count — it is what most real pages offer',
+  },
+  {
     file: 'src/tools/page-scanner.ts',
     find: "if (el.affordance === 'toggle' && Object.keys(el.stateAttributes).length === 0) {",
     replace: 'if (false) {',
