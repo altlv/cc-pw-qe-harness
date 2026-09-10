@@ -8,11 +8,12 @@ model it depends on lives in `.ai/state/`.
 
 ## Start gate
 
-1. Read `.ai/state/STATUS.md` and `.ai/state/HANDOFF.md`.
+1. Read `.ai/state/HANDOFF.md` for how we work here, then `.ai/state/PLAN.md` for
+   where the work stands.
 2. Run `git status --short --branch`. Look at the shape of the repo before opening
    many files.
 3. **Restate one bounded objective.** Extra requests and discoveries go to
-   `.ai/state/TODO.md`, not into silently widened scope.
+   `.ai/state/PLAN.md`, not into silently widened scope.
 4. Classify risk: LOW / MEDIUM / HIGH. Anything irreversible, public-facing, or
    security-sensitive is HIGH.
 
@@ -27,8 +28,8 @@ the check beats reasoning about what the check would say.
 
 Disk, command output, and test output are evidence. Conversation memory is not.
 
-Classify every claim — in `.ai/state/FINDINGS.md`, and in the frontmatter of any
-report (`docs/report-format.md`):
+Classify every claim — in `PLAN.md`'s proven / not-proven split, and in the
+frontmatter of any report (`docs/report-format.md`):
 
 | Type         | Means                            | Requires                                                |
 | ------------ | -------------------------------- | ------------------------------------------------------- |
@@ -69,7 +70,7 @@ it does, stop and test it.
 ## Scope guard
 
 Flag direction shifts instead of absorbing them. When a new thread appears, say so and
-let the human choose: pursue now, park in `TODO.md`, or treat as part of current work.
+let the human choose: pursue now, park in `PLAN.md`, or treat as part of current work.
 Every parked item gets a return condition.
 
 A constraint you invented is not a constraint. Before reporting something as blocked,
@@ -77,8 +78,10 @@ check that the blocker is real and external.
 
 ## End gate
 
-Update `STATUS.md` and `HANDOFF.md` with: files changed, commands actually run and
-their results, what is proven, what is not, open gaps, and the exact next action.
+Regenerate `PLAN.md`: commands actually run and their results, what is proven, what
+is not, open gaps, and the exact next action. Re-run the checks rather than recalling
+them. Touch `HANDOFF.md` only if a working agreement or trap changed — if you are
+updating it every session, something volatile has leaked into it.
 
 The test: could someone continue this work tomorrow with no access to the
 conversation? If not, the end gate is not done.

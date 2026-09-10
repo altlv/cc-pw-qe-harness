@@ -130,7 +130,7 @@ Then report:
 - testability findings from the scan, written per `.claude/skills/bug-report/SKILL.md`
 - what remains untested from the Step 5 plan
 
-Update `.ai/state/STATUS.md` if the task spanned more than one sitting.
+Update `.ai/state/PLAN.md` if the task spanned more than one sitting.
 
 ## Step 8 — Offer the pair
 

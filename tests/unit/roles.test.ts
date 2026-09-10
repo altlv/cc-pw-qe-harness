@@ -4,7 +4,7 @@ import { roles } from '../../src/agents/roles.js';
 
 /**
  * These roles have never been executed against the API. That is recorded honestly in
- * .ai/state/HANDOFF.md and must not be claimed otherwise.
+ * .ai/state/PLAN.md and must not be claimed otherwise.
  *
  * What can be verified without a live run is the contract: that every role says when
  * NOT to use it, that the skills it tells an agent to load actually exist, that it is

@@ -65,7 +65,7 @@ enough to beat the original rate convincingly.
 ### 4. If you cannot fix it now
 
 Quarantine explicitly and visibly: mark it, link the investigation, give it an owner
-and a date. Record it in `.ai/state/TODO.md`. A quarantined test with no owner becomes
+and a date. Record it in `.ai/state/PLAN.md`. A quarantined test with no owner becomes
 permanent.
 
 ## Decision points

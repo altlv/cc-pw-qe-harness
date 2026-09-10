@@ -103,8 +103,9 @@ A green suite proves the tests run. It does not prove they would notice a fault.
 > This file's own TODO drifted twice. A finding that exists only in a chat is already
 > lost.
 
-- [ ] `.ai/state/` refreshed: what is true, what is open, what is not proven
-- [ ] Anything discovered on the way recorded in `FINDINGS.md` with its evidence
+- [ ] `.ai/state/PLAN.md` regenerated: what is true, what is open, what is not proven
+- [ ] A trap worth the next person's time added to `HANDOFF.md`; anything about an app
+      under test written into that app's `README.md`, next to the tests
 
 ---
 
@@ -113,4 +114,4 @@ A green suite proves the tests run. It does not prove they would notice a fault.
 **What would make this wrong?** If nothing could, it asserts nothing.
 
 **What does this now claim that nobody has checked?** That sentence belongs in
-`STATUS.md` under "not proven", not in the README under features.
+`PLAN.md` under "not proven", not in the README under features.

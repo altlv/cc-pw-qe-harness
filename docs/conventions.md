@@ -98,6 +98,6 @@ cannot go stale:
 The test is simple: _would this number change if someone added a file?_ If yes, do not
 write it down — point at the thing that counts.
 
-State files under `.ai/state/` are the deliberate exception. They are a dated snapshot
+`.ai/state/PLAN.md` is the deliberate exception. It is a dated snapshot
 of a moment, refreshed at the end gate, and a count there is evidence rather than
 documentation — but it still carries the date it was taken.

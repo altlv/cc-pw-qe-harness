@@ -21,7 +21,7 @@ Two words worth pinning down. **Validated** means the role ran, stayed inside it
 budget, produced a report that passes `npm run check-report`, and every number it
 reported was checked against an independent source — not that it looked plausible.
 **Unexecuted** means exactly that: a role is prose until someone runs it, and most of
-them still are. `.ai/state/HANDOFF.md` names which.
+them still are. `.ai/state/PLAN.md` names which.
 
 Counts are deliberately absent from this file. Inventory numbers rot the moment code
 changes, and a confidently wrong number is worse than none — `npm run mutate`,
