@@ -14,6 +14,9 @@ const IGNORED_HOST_FRAGMENTS = [
 
 const MAX_BODY_CHARS = 4_000;
 
+/** Marks a payload the policy chose not to keep, as distinct from no payload. */
+export const WITHHELD = '[body withheld by policy]';
+
 function isNoise(request: Request): boolean {
   if (IGNORED_RESOURCE_TYPES.has(request.resourceType())) return true;
   // Browser-initiated, never the behaviour under test, and its timing varies
@@ -47,11 +50,20 @@ export class NetworkRecorder {
   private readonly calls: CapturedCall[] = [];
   private readonly startTimes = new WeakMap<Request, number>();
   private readonly pending = new Set<Promise<void>>();
+  private readonly captureBodies: boolean;
 
-  private constructor() {}
+  private constructor(captureBodies: boolean) {
+    this.captureBodies = captureBodies;
+  }
 
-  static attach(page: Page): NetworkRecorder {
-    const recorder = new NetworkRecorder();
+  /**
+   * `captureBodies: false` keeps method, path, status and timing but drops the
+   * payloads. Against a shared or production system the log is otherwise a file
+   * of real user data sitting on disk. `ExplorationPolicy` is what should decide
+   * this, not the call site.
+   */
+  static attach(page: Page, options: { captureBodies?: boolean } = {}): NetworkRecorder {
+    const recorder = new NetworkRecorder(options.captureBodies ?? true);
 
     page.on('request', (request) => {
       if (isNoise(request)) return;
@@ -67,7 +79,7 @@ export class NetworkRecorder {
         (async () => {
           const response = await request.response();
           let responseBody: string | null = null;
-          if (response) {
+          if (response && recorder.captureBodies) {
             const contentType = (await response.headerValue('content-type')) ?? '';
             // Only text-ish payloads; a binary body would be gibberish to an agent.
             if (/json|text|xml|javascript/i.test(contentType)) {
@@ -140,8 +152,15 @@ export class NetworkRecorder {
       failure,
       durationMs: startedAt === undefined ? null : Date.now() - startedAt,
       resourceType: request.resourceType(),
-      requestBody: truncate(request.postData()),
-      responseBody: truncate(responseBody),
+      // A withheld body is recorded as withheld, never as absent. "No body" and
+      // "a body we chose not to keep" are different facts, and a reader of the
+      // log has to be able to tell them apart.
+      requestBody: this.captureBodies
+        ? truncate(request.postData())
+        : request.postData() === null
+          ? null
+          : WITHHELD,
+      responseBody: this.captureBodies ? truncate(responseBody) : WITHHELD,
       startedAt: new Date(startedAt ?? Date.now()).toISOString(),
     });
   }
