@@ -1,3 +1,4 @@
+import './src/env.js';
 import { defineConfig, devices } from '@playwright/test';
 import { apps } from './apps/registry.js';
 
@@ -37,6 +38,18 @@ export default defineConfig({
       name: 'unit',
       testDir: './tests/unit',
       testMatch: '**/*.test.ts',
+    },
+    // Integration level: the harness's modules wired together through their real
+    // entry points — a spawned CLI, the actual filesystem, real exit codes. No
+    // browser and no app under test.
+    //
+    // This is the layer that catches what unit tests structurally cannot: the CI
+    // failure of 2026-09-09 was an unhandled ENOENT in a CLI's argument handling,
+    // invisible to every pure-function test and to every browser test.
+    {
+      name: 'integration',
+      testDir: './tests/integration',
+      testMatch: '**/*.int.test.ts',
     },
     // One project per app under test, derived from apps/registry.ts.
     ...activeApps.map((app) => ({

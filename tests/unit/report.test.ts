@@ -51,7 +51,7 @@ Body goes here.
 test.describe('report parsing', () => {
   test('should parse a well-formed report and return its body', () => {
     const parsed = parseReport(VALID_DOC);
-    expect(parsed.ok).toBe(true);
+    expect(parsed.ok, 'a valid report failed to parse — the format is unusable').toBe(true);
     if (parsed.ok) {
       expect(parsed.report.report).toBe('bug');
       expect(parsed.body.trim()).toBe('Body goes here.');

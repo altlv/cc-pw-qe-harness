@@ -39,8 +39,11 @@ test.describe('network capture', () => {
     const create = await network.waitForCall(
       (call) => call.method === 'POST' && call.path === '/api/todos',
     );
-    expect(create?.status).toBe(500);
-    expect(network.failures()).toHaveLength(1);
+    expect(
+      create?.status,
+      'the capture did not record the failed write — the DOM would be the only evidence, and it is lying',
+    ).toBe(500);
+    expect(network.failures(), 'a 500 response was not counted as a failure').toHaveLength(1);
     expect(create?.responseBody).toContain('database unavailable');
   });
 
@@ -50,7 +53,10 @@ test.describe('network capture', () => {
     const load = await network.waitForCall(
       (call) => call.method === 'GET' && call.path === '/api/todos',
     );
-    expect(load?.status).toBe(200);
+    expect(
+      load?.status,
+      'the successful call was not captured, so the recorder is missing traffic',
+    ).toBe(200);
     expect(load?.responseBody).toContain('todos');
     expect(load?.durationMs).not.toBeNull();
     expect(network.failures()).toHaveLength(0);
@@ -64,6 +70,9 @@ test.describe('network capture', () => {
     await expect(page.getByTestId('todo-item').first()).toBeVisible();
 
     await network.settle();
-    expect(network.entries().some((call) => call.path === '/favicon.ico')).toBe(false);
+    expect(
+      network.entries().some((call) => call.path === '/favicon.ico'),
+      'favicon traffic leaked into the capture — incidental browser requests can then fail a no-failures assertion',
+    ).toBe(false);
   });
 });

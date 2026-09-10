@@ -80,3 +80,42 @@ test.describe('repo hygiene', () => {
     }
   });
 });
+
+test.describe('npm scripts', () => {
+  // Two scripts rotted unnoticed when files moved: serve:fixture still pointed at
+  // fixtures-app/ after the per-app restructure, and test:example at a tests/example
+  // directory that no longer existed. Both fail only when someone runs them.
+  test('every script should point at a path that exists', () => {
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+
+    const stale: string[] = [];
+    for (const [name, command] of Object.entries(pkg.scripts)) {
+      const match = /(?:tsx|node|playwright test)\s+([^\s]+)/.exec(command);
+      const target = match?.[1];
+      if (target === undefined || target.startsWith('-') || !/[/.]/.test(target)) continue;
+      if (!existsSync(target)) stale.push(`${name} -> ${target}`);
+    }
+
+    expect(
+      stale,
+      `these scripts reference paths that no longer exist: ${stale.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  test('README should not promise a command that package.json does not define', () => {
+    const scripts = Object.keys(
+      (JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> })
+        .scripts,
+    );
+    const promised = [...readFileSync('README.md', 'utf8').matchAll(/`npm run ([a-z:-]+)/g)].map(
+      (m) => m[1] as string,
+    );
+    const missing = [...new Set(promised)].filter((name) => !scripts.includes(name));
+
+    expect(missing, `README documents commands that do not exist: ${missing.join(', ')}`).toEqual(
+      [],
+    );
+  });
+});

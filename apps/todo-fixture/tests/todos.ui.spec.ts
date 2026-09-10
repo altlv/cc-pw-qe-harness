@@ -37,7 +37,10 @@ test.describe('Todos', () => {
 
     await page.getByTestId('todo-submit').click();
 
-    await expect(page.getByTestId('todo-error')).toHaveText('title is required');
+    await expect(
+      page.getByTestId('todo-error'),
+      'no validation error shown — the user gets no feedback that the submission failed',
+    ).toHaveText('title is required');
     await expect(page.getByTestId('todo-item')).toHaveCount(before);
 
     const create = await network.waitForCall(

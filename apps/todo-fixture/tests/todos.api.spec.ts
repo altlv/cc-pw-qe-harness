@@ -34,8 +34,10 @@ test.describe('Todos API', () => {
 
     expect(response.status()).toBe(201);
     const { todo } = (await response.json()) as { todo: Todo };
-    expect(todo.title).toBe(title);
-    expect(todo.done).toBe(false);
+    expect(todo.title, 'the created todo came back with a different title than was sent').toBe(
+      title,
+    );
+    expect(todo.done, 'a newly created todo should not already be done').toBe(false);
 
     // Verify persistence independently — a create endpoint echoing its own input
     // proves nothing about whether the write landed.
@@ -56,7 +58,10 @@ test.describe('Todos API', () => {
       test(`should reject a todo when the title is ${label}`, async ({ api }) => {
         const response = await api.post('/api/todos', { data: { title } });
 
-        expect(response.status()).toBe(422);
+        expect(
+          response.status(),
+          `an invalid title (${label}) was accepted — validation is not enforced`,
+        ).toBe(422);
         expect((await response.json()) as { error: string }).toMatchObject({
           error: expect.any(String),
         });

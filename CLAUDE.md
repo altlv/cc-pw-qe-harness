@@ -57,7 +57,8 @@ search, then open exact files.
 ## Layout
 
 ```
-apps/<name>/       One app under test per folder — config, tests, pages, scans, README
+apps/<name>/       Subjects under test — NOT harness code. Config, tests, pages, scans, README.
+                   Nothing in src/ imports from apps/.
 src/agents/        Budget guard, SDK client, triage, role definitions
 src/capture/       Network recorder — the evidence layer
 src/fixtures/      harness.ts for UI specs, api.ts for API specs

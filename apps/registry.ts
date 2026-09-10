@@ -1,5 +1,6 @@
 import type { AppConfig } from './app-config.js';
 import countdownTimer from './countdown-timer/app.config.js';
+import fakerestapi from './fakerestapi/app.config.js';
 import todoFixture from './todo-fixture/app.config.js';
 
 /**
@@ -9,4 +10,4 @@ import todoFixture from './todo-fixture/app.config.js';
  * then add it here. Nothing else needs editing — playwright.config.ts builds a
  * project, a web server and a test directory from this list.
  */
-export const apps: AppConfig[] = [todoFixture, countdownTimer];
+export const apps: AppConfig[] = [todoFixture, countdownTimer, fakerestapi];

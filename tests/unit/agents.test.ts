@@ -34,9 +34,12 @@ test.describe('budget — the rabbit-hole guard', () => {
 
   test('should abort the underlying controller when told to stop', () => {
     const budget = new Budget();
-    expect(budget.controller.signal.aborted).toBe(false);
+    expect(budget.controller.signal.aborted, 'a fresh budget must not start aborted').toBe(false);
     budget.abort('turn limit');
-    expect(budget.controller.signal.aborted).toBe(true);
+    expect(
+      budget.controller.signal.aborted,
+      'abort did not signal the controller, so an over-budget agent would keep running',
+    ).toBe(true);
   });
 });
 
@@ -68,7 +71,10 @@ test.describe('triage output parsing', () => {
   });
 
   test('should return null on malformed JSON rather than throwing', () => {
-    expect(extractJson('{"classification": "infra"')).toBeNull();
+    expect(
+      extractJson('{"classification": "infra"'),
+      'malformed JSON should yield null, not throw — a bad reply must degrade, not crash the run',
+    ).toBeNull();
   });
 
   test('should accept a verdict that carries evidence', () => {

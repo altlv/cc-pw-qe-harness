@@ -8,7 +8,8 @@ async function findSpecs(dir: string): Promise<string[]> {
     entries.map(async (entry) => {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) return findSpecs(full);
-      return entry.name.endsWith('.spec.ts') ? [full] : [];
+      // Unit and integration tests are held to the same standard as specs.
+      return /\.(spec|test)\.ts$/.test(entry.name) ? [full] : [];
     }),
   );
   return files.flat();

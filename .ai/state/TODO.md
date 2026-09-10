@@ -7,17 +7,13 @@ Priority agreed with the user 2026-09-09: **D → B → A → C1 → E.**
 
 | #   | Item                                                                       | Why it is open                                                                                                                         | Blocked by                  |
 | --- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| 1   | **Integration level** — app spec exercising modules together, no browser   | User expects unit/integration/API/E2E/exploratory; integration is the one missing level                                                | nothing                     |
-| 2   | **Agent roles for unit + integration**                                     | `roles.ts` covers only the top of the pyramid                                                                                          | item 1                      |
 | 3   | **Recipes** — port the 9 multi-phase workflows                             | The orchestration layer; 0 of 9 ported                                                                                                 | items 1–2, needs the agents |
 | 4   | **Agent contracts** — 4 of 22 ported                                       | Missing: unit-component-test-engineer, investigator, delivery-orchestrator, code-reviewer, release-gate-reviewer, requirements-analyst | nothing                     |
-| 5   | **Drive one agent end to end**, emitting a valid report                    | `roles.ts` has never executed; highest-value remaining item                                                                            | valid `claude login`        |
-| 6   | **Triage against the live API**                                            | Deterministic half is unit-tested; the round trip is not                                                                               | valid `claude login`        |
+| 5   | **Validate `e2e-coder`** — a role that writes browser specs | Two roles validated; the browser-writing path is untested | a working key |
 | 7   | **CI dry-run before launch**                                               | The workflow has never run; a red badge on the launch commit is worse than none                                                        | nothing                     |
 | 8   | **LICENSE**                                                                | Public repo has none — legally unusable                                                                                                | **user's decision**         |
-| 9   | **Exploratory tooling**                                                    | Skill exists; no tooling and no worked session to show                                                                                 | nothing                     |
+| 9   | **A real exploratory session** | Skill and role exist; no worked session recorded | a working key |
 | 10  | `apps/todo-fixture/coverage.md`                                            | Three skills point at `apps/<app>/coverage.md`; only countdown-timer has one                                                           | nothing                     |
-| 11  | **C1** — `apps/fakerestapi/` API coverage                                  | User-supplied. POST returns 200, echoes, never persists — a live case for `test.fail()`                                                | after items 1–3             |
 | 12  | **E** — CI badge, repo description/topics, CONTRIBUTING, .nvmrc, CHANGELOG | Polish                                                                                                                                 | item 7                      |
 | 13  | Mutation testing as a debugging **skill**                                  | `npm run mutate` is a tool; make it something agents reach for when asked "do these tests prove anything"                              | after the five levels       |
 | 14  | Fresh-clone verification (`npm ci` → browsers → all suites)                | Proves it works for someone who is not us                                                                                              | nothing                     |
@@ -44,6 +40,18 @@ Priority agreed with the user 2026-09-09: **D → B → A → C1 → E.**
 | `docs/practices/` duplicating skills          | **DONE** — removed, 13 references repointed                                    |
 | Broken `patterns/ui-test.md` cross-reference  | **DONE** — path corrected, resolution verified                                 |
 | Example report citing a non-existent scan     | **DONE** — scan generated; its numbers match the report's claims               |
+| **Integration level**                         | **DONE** — `integration` project; CLI tests asserting real exit codes          |
+| **Agent roles for every level**               | **DONE** — one per level plus `investigator`, each naming its skills           |
+| **C1** `apps/fakerestapi`                     | **DONE** — Books by hand, Authors written by the `api-coder` role              |
+| **Triage against the live API**               | **DONE** — classified a 403 as infrastructure, citing real evidence            |
+| **Drive a role end to end**                   | **DONE** — `testability-reviewer` and `api-coder`, claims verified independently |
+| Nothing loaded `.env`                         | **DONE** — `src/env.ts`, no dependency added                                   |
+| Budget stop path crashed instead of stopping  | **DONE** — returns a partial result with `stoppedBy` set                       |
+| Inventory counts in documentation             | **DONE** — removed from README; convention recorded in docs/conventions.md     |
+| **Integration level**                         | **DONE** — `integration` project, 10 CLI tests asserting real exit codes       |
+| **Agent roles for every level**               | **DONE** — 7 roles; each says what it is NOT for, names its skills, emits a report |
+| Gate hardcoding its verdict output path       | **DONE** — path is an argument; the shared path made the suite flaky           |
+| `mutate` could not tell "failed" from "did not run" | **DONE** — refuses to score on a spawn failure                          |
 
 ## Note on this file
 

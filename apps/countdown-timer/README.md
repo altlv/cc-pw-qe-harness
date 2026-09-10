@@ -41,3 +41,27 @@ tick by tick and fires every scheduled timeout.
 
 `page.clock.install()` must run before `page.goto()`, or the app captures the real
 clock first.
+
+## Testability
+
+Audited 2026-09-10 by the `testability-reviewer` role; every claim below was verified
+independently against the live page. Third-party, so none of it is fixable — recorded
+so nobody audits it again expecting action.
+
+Scan (`SCAN_WITHIN=main`, committed at `scans/timer.json`): no element carries a
+`data-testid`. The app's own controls all have hand-authored ids, which is why the
+scanner grades them stable rather than fragile. The text-dependent elements are all
+site navigation, not timer controls — not worth raising.
+
+Two things the scan cannot see, both confirmed in the page source:
+
+**No accessible announcement of the countdown.** `#javascript_countdown_time` is a bare
+`<p>` with no `aria-live` and no `role`. A screen-reader user gets no announcement as
+the time ticks, and none when it reaches `Time Up!`.
+
+**No control reflects run state.** No button carries `disabled`, `aria-pressed`, or a
+state-dependent class — the markup is identical whether the timer is running or
+stopped. So the only way for a test to detect state is to sample the display text
+across elapsed time, which is exactly the flake this app exists to provoke. It is the
+concrete reason the specs here drive `page.clock` rather than waiting: without a state
+attribute there is nothing else to assert on.

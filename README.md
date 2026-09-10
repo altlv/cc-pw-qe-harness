@@ -11,11 +11,21 @@ triaging a failure it did not watch happen needs that evidence as text.
 
 Honest state of each part of the name.
 
-|        | Built                                                                                                                                                           | Not yet                                                                                                           |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **cc** | Bounded agent runner, triage agent, four role definitions (e2e-coder, api-coder, exploratory-tester, testability-reviewer)                                      | Agents not yet driven end to end; triage unverified against the live API; generation and self-healing not started |
-| **pw** | Per-app projects, network capture fixture, API request fixture, BasePage, page scanner, clock-driven timing tests                                               | Auth/storageState setup, multi-browser, sharding, component tests                                                 |
-| **qe** | Test quality gate, release-gate verdict (PASS/CONDITIONAL/FAIL), testability audit, practice docs for test design, risk, exploratory charters, defect reporting | Regression selection, flake tracking over time, quality metrics                                                   |
+|        | Built                                                                                                                                                                                                        | Not yet                                                                                             |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| **cc** | Bounded agent runner with a working stop path · a role per test level plus `investigator` · loadable skills · **roles validated end to end against live targets, their claims checked against ground truth** | Most roles still unexecuted · no skill invoked by name · no orchestration recipes · no self-healing |
+| **pw** | Five test levels on one runner — unit, integration, api, e2e, exploratory · network capture fixture · page scanner · clock-driven timing · per-subject projects                                              | Auth/storageState setup · multi-browser · sharding · component tests                                |
+| **qe** | Test quality gate · release-gate verdict PASS/CONDITIONAL/FAIL with staleness detection · checkable report format · mutation testing                                                                         | Regression selection · flake tracking over time · quality metrics · tier-3 evals                    |
+
+Two words worth pinning down. **Validated** means the role ran, stayed inside its
+budget, produced a report that passes `npm run check-report`, and every number it
+reported was checked against an independent source — not that it looked plausible.
+**Unexecuted** means exactly that: a role is prose until someone runs it, and most of
+them still are. `.ai/state/HANDOFF.md` names which.
+
+Counts are deliberately absent from this file. Inventory numbers rot the moment code
+changes, and a confidently wrong number is worse than none — `npm run mutate`,
+`npm test` and `ls .claude/skills` report the current ones.
 
 ## Quick start
 
@@ -28,21 +38,32 @@ npm test
 Runs against a bundled fixture app, so it works on a fresh clone with no external
 environment and no API key.
 
-## Apps under test
+## Apps — the subjects under test
 
-One folder per app under `apps/`, with its own config, tests, page objects and
-scans. App folders share nothing, so adding a target cannot disturb another.
+**`apps/` holds the things being tested, not the harness.** Each folder is a subject
+under test plus the tests written against it. None of it is harness code, nothing in
+`src/` imports from `apps/`, and deleting an app folder removes a target without
+touching the tool.
 
-```
-apps/todo-fixture/      bundled locally, starts automatically
-apps/countdown-timer/   testpages.eviltester.com, external: true
-```
+The harness lives in `src/`. Its own tests live in `tests/`.
+
+| App               | Kind           | What it is for                                                                                                       |
+| ----------------- | -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `todo-fixture`    | local, bundled | Gives the suite and the network capture something real to exercise offline. Starts automatically.                    |
+| `countdown-timer` | external       | Time-based UI. Proves the no-arbitrary-waits rule — a 30-second countdown asserted in milliseconds via `page.clock`. |
+| `fakerestapi`     | external       | Validation target for the `api-coder` role. Has three real contract defects to write tests against.                  |
+
+Each app folder carries its own `app.config.ts`, `tests/`, and — where they exist —
+`pages/`, `scans/`, `coverage.md` and a `README.md` recording what was learned about
+it. App folders share nothing, so adding a subject cannot disturb another.
 
 Add one with `apps/<name>/app.config.ts` + `tests/`, then a line in
-`apps/registry.ts`. Playwright derives everything else. See `apps/README.md`.
+`apps/registry.ts`. Playwright derives the project, base URL and web server from the
+registry. See `apps/README.md`.
 
-External apps are excluded from `npm test` and CI — a suite that goes red because
-someone else's site is down teaches the team to ignore red. Run them explicitly:
+**External subjects are excluded from `npm test` and CI** — a suite that goes red
+because someone else's site is down teaches the team to ignore red. Run them
+explicitly:
 
 ```bash
 npm run test:external
@@ -115,15 +136,21 @@ guardrails and the repo conventions in its prompt.
 
 ## Commands
 
-| Command                    | Does                                  |
-| -------------------------- | ------------------------------------- |
-| `npm test`                 | Local apps + harness self-tests       |
-| `npm run test:external`    | Third-party apps, opt-in              |
-| `npm run check`            | format + lint + typecheck             |
-| `npm run assert-quality`   | Test quality gate                     |
-| `npm run gate`             | Release verdict                       |
-| `npm run scan -- <url>`    | Page scan + testability audit         |
-| `npm run triage -- <file>` | Triage a failure JSON (needs API key) |
+| Command                           | Does                                                                |
+| --------------------------------- | ------------------------------------------------------------------- |
+| `npm test`                        | Local subjects + harness self-tests (unit, integration, api, e2e)   |
+| `npm run test:external`           | Third-party subjects, opt-in                                        |
+| `npm run check`                   | format + lint + typecheck                                           |
+| `npm run assert-quality`          | Test quality gate                                                   |
+| `npm run gate`                    | Release verdict, refusing stale results                             |
+| `npm run mutate`                  | Breaks each enforced rule deliberately and checks the suite notices |
+| `npm run scan -- <url>`           | Page scan + testability audit                                       |
+| `npm run check-report -- <path>`  | Validate a QA report against `docs/report-format.md`                |
+| `npm run role -- <role> "<task>"` | Run an agent role (needs a key)                                     |
+| `npm run triage -- <file>`        | Triage a failure JSON (needs a key)                                 |
+
+Anything needing a key reads it from `.env` — see `.env.example`. `.env` is gitignored;
+never commit one.
 
 ## Practices
 

@@ -9,7 +9,6 @@
   },
   "scripts": {
     "test": "playwright test",
-    "test:example": "playwright test tests/example",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -18,12 +17,13 @@
     "check": "npm run format:check && npm run lint && npm run typecheck",
     "triage": "tsx src/cli/triage.ts",
     "assert-quality": "tsx src/cli/assert-quality.ts apps tests",
-    "serve:fixture": "node fixtures-app/server.mjs",
+    "serve:fixture": "node apps/todo-fixture/app/server.mjs",
     "scan": "tsx src/cli/scan.ts",
-    "test:external": "cross-env RUN_EXTERNAL=1 playwright test --project=countdown-timer",
+    "test:external": "cross-env RUN_EXTERNAL=1 playwright test --project=countdown-timer --project=fakerestapi",
     "gate": "tsx src/cli/gate.ts",
     "check-report": "tsx src/cli/check-report.ts",
-    "mutate": "tsx src/cli/mutate.ts"
+    "mutate": "tsx src/cli/mutate.ts",
+    "role": "tsx src/cli/role.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.266",

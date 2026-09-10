@@ -89,6 +89,14 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
           stoppedBy = `agent ended with subtype "${message.subtype}"`;
         }
       }
+      // Keep the last assistant text, so a run that is cut short still returns what
+      // it had reached rather than an empty string.
+      if (message.type === 'assistant') {
+        const said = message.message.content
+          .map((part) => (part.type === 'text' ? part.text : ''))
+          .join('\n');
+        if (said.trim() !== '') text = said;
+      }
 
       const limit = budget.exceeded();
       if (limit !== null && stoppedBy === null) {
@@ -97,10 +105,17 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
       }
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     if (budget.controller.signal.aborted) {
       stoppedBy ??= 'aborted';
     } else if (isAuthFailure(error)) {
-      throw new AgentAuthError(`${AUTH_HINT}\n  ${(error as Error).message}`);
+      throw new AgentAuthError(`${AUTH_HINT}\n  ${message}`);
+    } else if (/maximum number of turns/i.test(message)) {
+      // The SDK throws rather than yielding a result when it exhausts maxTurns.
+      // That is the budget working, not a crash: the caller should get a partial
+      // result that says so. Letting it escape as a stack trace was the difference
+      // between "bounded" as a documented promise and as a real behaviour.
+      stoppedBy = `turn limit reached (${budget.limits.maxTurns})`;
     } else {
       throw error;
     }

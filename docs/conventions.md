@@ -67,3 +67,37 @@ assertion with no interaction, is a build failure.
 network events to Node asynchronously. Right after an action, use
 `await network.waitForCall(predicate)`, which polls. Use `entries()` only for
 after-the-fact inspection, and `settle()` when you need everything in flight to land.
+
+## Do not put inventory counts in documentation
+
+Numbers that describe _how many things exist_ rot the moment the code changes, and a
+confidently wrong number is worse than none — a reader who spots one stale figure stops
+trusting the rest of the page.
+
+Real cases from this repo: the README claimed "four role definitions" when there were
+seven, and "17 mutations" while a naive `grep` said 18 — which sent someone hunting a
+bug that did not exist.
+
+**Instead of a count, name the command that produces it.**
+
+| Avoid                          | Prefer                                                  |
+| ------------------------------ | ------------------------------------------------------- |
+| "ten loadable skills"          | "loadable skills — `ls .claude/skills`"                 |
+| "mutation testing at 17/17"    | "mutation testing — `npm run mutate` reports the score" |
+| "the quality gate has 5 rules" | "the quality gate — `npm run assert-quality`"           |
+| "123 tests pass"               | "the suite passes — `npm test`"                         |
+
+**Numbers used as principles are fine**, because they do not describe inventory and so
+cannot go stale:
+
+- "One violation is an opinion; three is a pattern."
+- "One object per page, not per test."
+- "Stop after three materially different attempts."
+- Step numbers in a procedure.
+
+The test is simple: _would this number change if someone added a file?_ If yes, do not
+write it down — point at the thing that counts.
+
+State files under `.ai/state/` are the deliberate exception. They are a dated snapshot
+of a moment, refreshed at the end gate, and a count there is evidence rather than
+documentation — but it still carries the date it was taken.

@@ -1,5 +1,5 @@
 import { readdir, readFile, stat, writeFile, mkdir } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { analyzeSpec, type QualityFinding } from '../quality/assertions.js';
 import { assessGate, type RunStats } from '../qe/gate.js';
 import { formatVerdict } from '../qe/verdict.js';
@@ -27,7 +27,8 @@ async function findSpecs(dir: string): Promise<string[]> {
     entries.map(async (entry) => {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) return findSpecs(full);
-      return entry.name.endsWith('.spec.ts') ? [full] : [];
+      // Unit and integration tests are held to the same standard as specs.
+      return /\.(spec|test)\.ts$/.test(entry.name) ? [full] : [];
     }),
   );
   return files.flat();
@@ -112,8 +113,12 @@ const verdict = assessGate({ stats, failedTests, flakyTests, qualityFindings, ph
 
 console.log(formatVerdict(verdict));
 
-await mkdir('artifacts', { recursive: true });
-await writeFile('artifacts/verdict.json', JSON.stringify(verdict, null, 2), 'utf8');
-console.log('\nWritten to artifacts/verdict.json');
+// Output path is an argument so several gates can run without fighting over one
+// file — two runs writing the same path is shared mutable state, and it made the
+// harness's own integration tests flaky.
+const verdictPath = resolve(process.argv[3] ?? 'artifacts/verdict.json');
+await mkdir(dirname(verdictPath), { recursive: true });
+await writeFile(verdictPath, JSON.stringify(verdict, null, 2), 'utf8');
+console.log(`\nWritten to ${verdictPath}`);
 
 process.exit(verdict.verdict === 'FAIL' ? 1 : 0);

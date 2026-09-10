@@ -1,3 +1,4 @@
+import '../env.js';
 import { readFile } from 'node:fs/promises';
 import { AgentAuthError } from '../agents/client.js';
 import { triageFailure, type TriageInput } from '../agents/triage.js';

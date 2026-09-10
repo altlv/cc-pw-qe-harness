@@ -1,47 +1,41 @@
 # STATUS — current truth
 
-**Updated:** 2026-09-09
+**Updated:** 2026-09-10
 
 ## Objective (bounded)
 
-Bring cc-pw-qe-harness to a showable state. Launch commit (squash + push) is the
-user's responsibility; local commits are mine.
+Bring `cc-pw-qe-harness` to a showable state. **The user owns every commit and push** —
+do not commit unprompted, never push.
+
+## Agreed priority
+
+**D → B → A → C1 → E.** D done. B largely done — two roles now validated against live
+targets. A absorbed into B. C1 done (`apps/fakerestapi`). E is polish.
 
 ## Phase
 
-Tier 0 of the agreed action plan — NOT STARTED.
+Uncommitted working set, verified green. Awaiting the user's decision on a commit.
 
-## Verified facts (OBSERVED)
+## Verified facts (OBSERVED, this session)
 
-- Local suite 10 passed; external suite 6 passed in ~3s. Full check (format/lint/typecheck) clean.
-- Release gate returns PASS on a clean run and FAIL with a blocker when a vacuous test is present (exit 1).
-- Quality gate fires all 4 finding types on a bad spec, 0 findings on real specs.
-- Network capture proof: DOM asserts success while POST returns 500.
-- 2 local commits (53cf4c5, 5d70543). Nothing pushed. Remote repo exists, public, EMPTY.
+- Full suite green — `npm test` and `npm run test:external`; `npm run gate` returns
+  PASS; `npm run check` clean.
+- `npm run mutate` catches every rule it breaks.
+- **Two roles validated end to end against live targets**, claims checked against
+  independent sources: `testability-reviewer` (read-only) and `api-coder`, which wrote
+  a spec that runs, passes, and clears the quality gate.
+- The triage agent works against the live API.
+- The budget's stop path works: a run exhausting `maxTurns` returns a partial result
+  rather than crashing.
 
-## Not proven (do not claim as done)
+## Not proven — do not claim otherwise
 
-- `src/agents/roles.ts` has NEVER been executed.
-- Triage agent has NEVER called the live API — no ANTHROPIC_API_KEY present.
-- CI workflow has NEVER run.
-- 17 files under src/ have zero unit tests.
-
-## Agreed priority (user, 2026-09-09)
-
-1. **D** — inheritance from goose-harness (highest perceived value)
-2. **B** — honesty and accountability (prove what is claimed)
-3. **A** — test tooling for unit/integration/api/e2e. Reasonable, NOT overengineered:
-   the harness has no real codebase under test, so tooling must stay proportionate.
-4. **C1** — fakerestapi only. GitHub API is not a testing site — SKIPPED by decision.
-5. **E** — polish
+- Most roles have never run. `HANDOFF.md` names which.
+- No skill has been invoked by name.
+- CI has not run since the integration level and the roles landed.
 
 ## Next action
 
-Session wrapped 2026-09-09. See HANDOFF.md — it is the restart packet.
-
-Unit level added with 46 tests and a 9/9 mutation score, so the harness now tests
-itself and the assertions are proven to catch real breakage. Report format added and
-validated in both directions.
-
-Remaining, in order: integration level · agent roles for unit+integration · recipes ·
-drive one agent end to end · LICENSE (user's decision).
+Commit point reached and reported. After that, in order: recipes · validate a role
+that writes browser specs (`e2e-coder`) · a real exploratory session · LICENSE, which
+is the user's decision.

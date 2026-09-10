@@ -31,7 +31,7 @@ test.describe('release gate', () => {
         failedTests: ['checkout works'],
       }),
     );
-    expect(verdict.verdict).toBe('FAIL');
+    expect(verdict.verdict, 'a run with failures must not be allowed to pass').toBe('FAIL');
     expect(verdict.blockers.join(' ')).toContain('failing test');
   });
 
@@ -47,8 +47,10 @@ test.describe('release gate', () => {
         flakyTests: ['login'],
       }),
     );
-    expect(verdict.verdict).toBe('CONDITIONAL');
-    expect(verdict.blockers).toHaveLength(0);
+    expect(verdict.verdict, 'flake should be recorded as a risk, not treated as a blocker').toBe(
+      'CONDITIONAL',
+    );
+    expect(verdict.blockers, 'flake must not block a release on its own').toHaveLength(0);
     expect(verdict.risks.join(' ')).toContain('flaky');
   });
 
@@ -65,7 +67,7 @@ test.describe('release gate', () => {
     const verdict = assessGate(
       input({ stats: { expected: 0, unexpected: 0, flaky: 0, skipped: 0 } }),
     );
-    expect(verdict.verdict).toBe('FAIL');
+    expect(verdict.verdict, 'an empty run is not evidence and must not pass').toBe('FAIL');
     expect(verdict.blockers.join(' ')).toContain('No tests ran');
   });
 
@@ -73,7 +75,9 @@ test.describe('release gate', () => {
     const verdict = assessGate(
       input({ stats: { expected: 9, unexpected: 0, flaky: 0, skipped: 1 } }),
     );
-    expect(verdict.verdict).toBe('CONDITIONAL');
+    expect(verdict.verdict, 'skipped tests are missing coverage and must be surfaced').toBe(
+      'CONDITIONAL',
+    );
     expect(verdict.risks.join(' ')).toContain('skipped');
   });
 

@@ -1,8 +1,11 @@
 import { execFile } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
+
+const PROJECTS = ['--project=unit', '--project=integration'];
 
 /**
  * Mutation testing for the harness's own logic.
@@ -73,6 +76,55 @@ const MUTATIONS: Mutation[] = [
     breaks: 'The spend limit should stop an agent',
   },
   {
+    file: 'src/cli/check-report.ts',
+    find: '  if (explicit !== undefined) {',
+    replace: '  if (false) {',
+    breaks: 'A named report path that does not exist must be an error, not a pass',
+  },
+  {
+    file: 'src/cli/gate.ts',
+    find: '  if (newest > ranAt) {',
+    replace: '  if (false) {',
+    breaks: 'The gate must refuse test results older than the source',
+  },
+  {
+    file: 'src/agents/roles.ts',
+    find: 'Not for pure logic (unit-test-engineer) or anything needing a browser (e2e-coder).',
+    replace: 'It is generally useful.',
+    breaks: 'A role description must say when NOT to use it',
+  },
+  {
+    file: 'src/agents/roles.ts',
+    find: 'Load: .claude/skills/testability-audit/SKILL.md,',
+    replace: 'Load: .claude/skills/does-not-exist/SKILL.md,',
+    breaks: 'A role must not point at a skill that does not exist',
+  },
+  {
+    file: 'src/agents/roles.ts',
+    find: "Not for writing the fix, and not for a failure whose cause is already established.',\n  model: 'sonnet',\n  maxTurns: 25,\n  tools: ['Read', 'Grep', 'Glob', 'Bash'],",
+    replace:
+      "Not for writing the fix, and not for a failure whose cause is already established.',\n  model: 'sonnet',\n  maxTurns: 25,\n  tools: ['Read', 'Grep', 'Glob', 'Bash', 'Edit'],",
+    breaks: 'An investigating role must not be able to edit product code',
+  },
+  {
+    file: 'src/quality/assertions.ts',
+    find: 'if (assertions > 1 && explained === 0) {',
+    replace: 'if (false) {',
+    breaks: 'A multi-assertion test with no failure message must be flagged',
+  },
+  {
+    file: 'src/quality/assertions.ts',
+    find: 'const source = maskStringsAndComments(rawSource);',
+    replace: 'const source = rawSource;',
+    breaks: 'Fixture strings must not be analysed as though they were code',
+  },
+  {
+    file: 'src/quality/assertions.ts',
+    find: 'const value = block.raw.slice(valueStart, valueStart + valueLength);',
+    replace: "const value = '';",
+    breaks: 'The selector rule must read the real selector, not the masked blank',
+  },
+  {
     file: 'src/tools/page-scanner.ts',
     find: "severity: 'high',",
     replace: "severity: 'medium',",
@@ -80,23 +132,38 @@ const MUTATIONS: Mutation[] = [
   },
 ];
 
-async function unitSuitePasses(): Promise<boolean> {
+const PLAYWRIGHT = resolve('node_modules/@playwright/test/cli.js');
+
+/**
+ * Runs the suites and reports whether they passed.
+ *
+ * Distinguishing "the tests failed" from "the tests could not be started" matters
+ * more here than anywhere else: if a spawn failure were treated as a failing suite,
+ * every mutation would look caught while nothing ran at all — a mutation tool
+ * reporting a perfect score having tested nothing. This exact thing happened when
+ * the runner was invoked through the `npx` shim, which fails with EINVAL on Windows.
+ */
+async function suitePasses(): Promise<boolean> {
   try {
-    // npx needs its .cmd shim on Windows; avoids shell:true, which concatenates
-    // rather than escapes arguments.
-    const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    await run(npx, ['playwright', 'test', '--project=unit', '--reporter=dot'], {
+    await run(process.execPath, [PLAYWRIGHT, 'test', ...PROJECTS, '--reporter=dot'], {
       windowsHide: true,
     });
     return true;
-  } catch {
+  } catch (error) {
+    const e = error as { code?: number | string };
+    if (typeof e.code === 'string') {
+      throw new Error(
+        `Could not start the test runner (${e.code}). Refusing to report a mutation score — ` +
+          `every mutation would look caught while nothing ran.`,
+      );
+    }
     return false;
   }
 }
 
-console.log('Baseline: running the unit suite unmutated…');
-if (!(await unitSuitePasses())) {
-  console.error('The unit suite fails before any mutation. Fix that first.');
+console.log('Baseline: running the unit + integration suites unmutated…');
+if (!(await suitePasses())) {
+  console.error('The suite fails before any mutation. Fix that first.');
   process.exit(2);
 }
 console.log('Baseline green.\n');
@@ -114,7 +181,7 @@ for (const mutation of MUTATIONS) {
   }
 
   await writeFile(mutation.file, original.replace(mutation.find, mutation.replace), 'utf8');
-  const stillPasses = await unitSuitePasses();
+  const stillPasses = await suitePasses();
   await writeFile(mutation.file, original, 'utf8');
 
   if (stillPasses) {
