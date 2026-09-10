@@ -32,6 +32,10 @@ Declare it with `EXPLORE_ENV=local|test|prod`. `npm run scan` reads it and, on
 anything but local, withholds request and response bodies from the log it writes
 to disk — otherwise that file is a copy of real payloads sitting in the repo.
 
+**Navigating is not touching.** Following a link on production is how you see
+anything; a GET leaves no mark. The line is at actions that do: creating an object,
+subscribing, purchasing, submitting a form, entering credentials, deleting.
+
 ## 2. The definite NOs — never, on any environment
 
 These hold even locally, because their effects leave the system:

@@ -16,7 +16,7 @@ interface Author {
 
 const AUTHORS = '/api/v1/Authors';
 
-test.describe('Authors — collection', () => {
+test.describe('Authors — collection', { tag: '@read-only' }, () => {
   test('should return the collection with the documented shape', async ({ api }) => {
     const response = await api.get(AUTHORS);
 
@@ -47,7 +47,7 @@ test.describe('Authors — collection', () => {
   });
 });
 
-test.describe('Authors — error contract', () => {
+test.describe('Authors — error contract', { tag: '@read-only' }, () => {
   // RFC 7807-style problem details, matching the Books contract exactly. Worth
   // pinning: a client that branches on the error body breaks silently if this
   // shape changes.
@@ -81,7 +81,7 @@ test.describe('Authors — error contract', () => {
   });
 });
 
-test.describe('Authors — create', () => {
+test.describe('Authors — create', { tag: '@writes' }, () => {
   test('should echo the submitted author back', async ({ api }) => {
     const firstName = `probe ${Date.now()}`;
 

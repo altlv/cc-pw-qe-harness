@@ -17,7 +17,7 @@ interface Book {
 
 const BOOKS = '/api/v1/Books';
 
-test.describe('Books — collection', () => {
+test.describe('Books — collection', { tag: '@read-only' }, () => {
   test('should return the collection with the documented shape', async ({ api }) => {
     const response = await api.get(BOOKS);
 
@@ -54,7 +54,7 @@ test.describe('Books — collection', () => {
   });
 });
 
-test.describe('Books — error contract', () => {
+test.describe('Books — error contract', { tag: '@read-only' }, () => {
   // RFC 7807-style problem details. Worth pinning: a client that branches on the
   // error body breaks silently if this shape changes.
   test('should return a 404 problem document for an id that does not exist', async ({ api }) => {
@@ -87,7 +87,7 @@ test.describe('Books — error contract', () => {
   });
 });
 
-test.describe('Books — create', () => {
+test.describe('Books — create', { tag: '@writes' }, () => {
   test('should echo the submitted book back', async ({ api }) => {
     const title = `probe ${Date.now()}`;
 

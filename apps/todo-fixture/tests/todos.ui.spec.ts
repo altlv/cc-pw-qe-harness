@@ -1,6 +1,6 @@
 import { test, expect } from '../../../src/fixtures/harness.js';
 
-test.describe('Todos', () => {
+test.describe('Todos', { tag: '@writes' }, () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('todo-item').first()).toBeVisible();

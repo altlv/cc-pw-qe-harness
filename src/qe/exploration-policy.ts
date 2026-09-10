@@ -28,8 +28,23 @@ export interface ExplorationPolicy {
   allowFormSubmit: boolean;
   /** May click controls that destroy data. */
   allowDestructive: boolean;
-  /** May attempt credentials. Repeated attempts lock real accounts out. */
-  allowAuthAttempts: boolean;
+  /**
+   * May authenticate using credentials we already hold.
+   *
+   * Deliberately broader than "sign in". A login form is one way; a bearer
+   * token, basic auth, an API key or an OAuth exchange are others, and none of
+   * them goes near a GUI. Naming this after the front-end act would have quietly
+   * excluded every API session from a rule that plainly applies to them.
+   *
+   * Permitted everywhere, production included: authenticating is how the
+   * application is reached at all, and confirming that login and password reset
+   * still work is ordinary, valuable production testing.
+   *
+   * Presenting a credential is the permitted act. *Guessing* one is not, and no
+   * environment enables it: repeated failed attempts lock real accounts out and
+   * are indistinguishable from an attack.
+   */
+  allowAuthentication: boolean;
   /** May follow links off the starting origin. */
   stayOnOrigin: boolean;
 
@@ -71,8 +86,19 @@ const DESTRUCTIVE_LABELS = [
   'reset',
 ];
 
-/** Labels that reach outside the system entirely. Never clicked, anywhere. */
+/**
+ * Labels that commit to something. Never clicked, anywhere.
+ *
+ * Clicking to *navigate* is fine — that is how you see anything. These are the
+ * clicks that create an account, start a subscription, spend money or send
+ * something to a real person: the ones that leave a mark on somebody's records.
+ */
 const OUTBOUND_LABELS = [
+  'sign up',
+  'signup',
+  'sign-up',
+  'register',
+  'create account',
   'send',
   'email',
   'invite',
@@ -94,7 +120,7 @@ const PRESETS: Record<Environment, Omit<ExplorationPolicy, 'environment'>> = {
     allowWrites: true,
     allowFormSubmit: true,
     allowDestructive: true,
-    allowAuthAttempts: true,
+    allowAuthentication: true,
     stayOnOrigin: true,
     captureBodies: true,
     denyLabels: [...OUTBOUND_LABELS],
@@ -108,7 +134,7 @@ const PRESETS: Record<Environment, Omit<ExplorationPolicy, 'environment'>> = {
     allowWrites: true,
     allowFormSubmit: true,
     allowDestructive: false,
-    allowAuthAttempts: false,
+    allowAuthentication: true,
     stayOnOrigin: true,
     captureBodies: false,
     denyLabels: [...DESTRUCTIVE_LABELS, ...OUTBOUND_LABELS],
@@ -117,12 +143,22 @@ const PRESETS: Record<Environment, Omit<ExplorationPolicy, 'environment'>> = {
     timeoutMs: 180_000,
   },
 
-  /** Real users, real data, real consequences. Look, do not touch. */
+  /**
+   * Real users, real data, real consequences.
+   *
+   * **Navigation is fine.** Following links and moving between views is how you
+   * see anything at all, and a GET changes nothing. What is refused is creating
+   * objects, subscribing, purchasing, submitting forms, entering credentials and
+   * anything destructive — the actions that leave a mark on someone's account or
+   * someone's invoice. Authenticating is not among them: it is how you get to
+   * the application, by form or by token, and checking that it still works is
+   * worth doing here.
+   */
   prod: {
     allowWrites: false,
     allowFormSubmit: false,
     allowDestructive: false,
-    allowAuthAttempts: false,
+    allowAuthentication: true,
     stayOnOrigin: true,
     captureBodies: false,
     denyLabels: [...DESTRUCTIVE_LABELS, ...OUTBOUND_LABELS],
@@ -165,14 +201,18 @@ export function actionAllowed(
   }
 
   const isPassword = control.type === 'password';
-  if (isPassword && !policy.allowAuthAttempts) {
+  if (isPassword && !policy.allowAuthentication) {
     return {
       allowed: false,
-      reason: `credential entry not permitted on ${policy.environment} — repeated attempts lock real accounts`,
+      reason: `credential entry not permitted on ${policy.environment}`,
     };
   }
 
-  if (!policy.allowWrites && (control.isSubmit || control.tag === 'input')) {
+  // Typing into a field is not a write. Nothing leaves the browser until
+  // something is submitted, and submission is already refused above. Treating
+  // text entry as a write blocked authentication on production — which made the
+  // read-only rule forbid the one act that reaching the application requires.
+  if (!policy.allowWrites && control.isSubmit) {
     return { allowed: false, reason: `read-only session on ${policy.environment}` };
   }
 
@@ -195,10 +235,11 @@ export function formatChecklist(policy: ExplorationPolicy, target: string): stri
     `  Environment   ${policy.environment.toUpperCase()}`,
     '',
     '  Permitted',
+    '    YES  navigate — follow links, move between views',
     `    ${yes(policy.allowWrites)}  change server state`,
     `    ${yes(policy.allowFormSubmit)}  submit forms`,
     `    ${yes(policy.allowDestructive)}  destructive controls`,
-    `    ${yes(policy.allowAuthAttempts)}  credential attempts`,
+    `    ${yes(policy.allowAuthentication)}  authenticate with credentials we hold (GUI or API)`,
     `    ${yes(policy.captureBodies)}  write request/response bodies to disk`,
     '',
     '  Definite NOs',

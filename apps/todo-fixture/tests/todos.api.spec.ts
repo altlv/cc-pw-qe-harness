@@ -7,7 +7,7 @@ interface Todo {
   done: boolean;
 }
 
-test.describe('Todos API', () => {
+test.describe('Todos API', { tag: '@writes' }, () => {
   test('should return the todo collection with the documented shape', async ({ api }) => {
     const response = await api.get('/api/todos');
 

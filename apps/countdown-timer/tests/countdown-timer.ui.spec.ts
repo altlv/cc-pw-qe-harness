@@ -20,7 +20,7 @@ import { test, expect } from '../../../src/fixtures/harness.js';
 
 const DISPLAY = '#javascript_countdown_time';
 
-test.describe('Countdown timer', () => {
+test.describe('Countdown timer', { tag: '@read-only' }, () => {
   test.beforeEach(async ({ page }) => {
     // Must be installed before page scripts run, or the app captures the real clock.
     await page.clock.install();

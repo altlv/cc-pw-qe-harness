@@ -30,9 +30,9 @@ test.describe('environment presets', () => {
     expect(policy.allowFormSubmit, 'submitting a real form is the highest-risk click').toBe(false);
     expect(policy.allowDestructive, 'destructive controls are never permitted on prod').toBe(false);
     expect(
-      policy.allowAuthAttempts,
-      'repeated credential attempts lock real users out of real accounts',
-    ).toBe(false);
+      policy.allowAuthentication,
+      'authenticating — by form or by token — is how the application is reached at all; it is signing *up* that is barred',
+    ).toBe(true);
   });
 
   test('should not write payload bodies to disk on anything but local', () => {
@@ -121,17 +121,19 @@ test.describe('actionAllowed', () => {
     ).toContain('form submission');
   });
 
-  test('should refuse credential entry where a lockout is possible', () => {
-    const verdict = actionAllowed(
-      policyFor('test'),
-      control({ label: 'Password', tag: 'input', type: 'password' }),
-    );
-
-    expect(verdict.allowed, 'credential attempts are barred on shared environments').toBe(false);
+  test('should permit authenticating, while still refusing to create an account', () => {
     expect(
-      verdict.allowed === false ? verdict.reason : '',
-      'the reason must name the lockout risk so the skip is understandable in the report',
-    ).toContain('lock');
+      actionAllowed(
+        policyFor('prod'),
+        control({ label: 'Password', tag: 'input', type: 'password' }),
+      ).allowed,
+      'barring authentication would make production untestable — reaching the app requires it',
+    ).toBe(true);
+
+    expect(
+      actionAllowed(policyFor('prod'), control({ label: 'Sign up' })).allowed,
+      'authenticating uses an account we already hold; signing up creates one nobody asked for',
+    ).toBe(false);
   });
 
   test('should permit an ordinary navigation control on prod', () => {
