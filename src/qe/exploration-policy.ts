@@ -64,6 +64,19 @@ export interface ExplorationPolicy {
   maxStates: number;
   maxActions: number;
   timeoutMs: number;
+
+  /**
+   * How many pages a crawl may fetch here.
+   *
+   * Crawling is read-only and can still do harm, because the harm is load. These
+   * two are not rabbit-hole guards like the fields above — they are politeness,
+   * and they belong in the policy for the same reason everything else does: the
+   * alternative was a tool that hit production exactly as hard as a local
+   * fixture, which is what it did before this existed.
+   */
+  crawlMaxPages: number;
+  /** Minimum gap between requests. A robots.txt Crawl-delay raises it further. */
+  crawlDelayMs: number;
 }
 
 /**
@@ -127,6 +140,8 @@ const PRESETS: Record<Environment, Omit<ExplorationPolicy, 'environment'>> = {
     maxStates: 40,
     maxActions: 200,
     timeoutMs: 300_000,
+    crawlMaxPages: 150,
+    crawlDelayMs: 0,
   },
 
   /** Shared. Your mess is someone else's blocked afternoon. */
@@ -141,6 +156,8 @@ const PRESETS: Record<Environment, Omit<ExplorationPolicy, 'environment'>> = {
     maxStates: 25,
     maxActions: 100,
     timeoutMs: 180_000,
+    crawlMaxPages: 50,
+    crawlDelayMs: 400,
   },
 
   /**
@@ -165,6 +182,8 @@ const PRESETS: Record<Environment, Omit<ExplorationPolicy, 'environment'>> = {
     maxStates: 15,
     maxActions: 40,
     timeoutMs: 120_000,
+    crawlMaxPages: 25,
+    crawlDelayMs: 1_000,
   },
 };
 

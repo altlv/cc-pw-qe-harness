@@ -188,6 +188,24 @@ const MUTATIONS: Mutation[] = [
     breaks: 'A sign-in page must not be mistaken for the application behind it',
   },
   {
+    file: 'src/tools/crawl.ts',
+    find: 'if (response.status >= 500) {',
+    replace: 'if (false) {',
+    breaks: 'An unreachable robots.txt must refuse the crawl, not grant permission',
+  },
+  {
+    file: 'src/tools/crawl.ts',
+    find: '      disallowed.push(next.url);',
+    replace: '      // disallow ignored',
+    breaks: 'A path disallowed by robots.txt must be skipped and reported',
+  },
+  {
+    file: 'src/tools/crawl.ts',
+    find: "return (byPrefix.get(key)?.size ?? 0) >= minVariants ? '{slug}' : segment;",
+    replace: 'return segment;',
+    breaks: 'Slug segments must be induced, or every product page is its own template',
+  },
+  {
     file: 'src/tools/reveal.ts',
     find: 'if (rect.right <= 0 && rect.left < -1_000) continue;',
     replace: '// visually-hidden check removed',

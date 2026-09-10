@@ -136,18 +136,20 @@ guardrails and the repo conventions in its prompt.
 
 ## Commands
 
-| Command                           | Does                                                                |
-| --------------------------------- | ------------------------------------------------------------------- |
-| `npm test`                        | Local subjects + harness self-tests (unit, integration, api, e2e)   |
-| `npm run test:external`           | Third-party subjects, opt-in                                        |
-| `npm run check`                   | format + lint + typecheck                                           |
-| `npm run assert-quality`          | Test quality gate                                                   |
-| `npm run gate`                    | Release verdict, refusing stale results                             |
-| `npm run mutate`                  | Breaks each enforced rule deliberately and checks the suite notices |
-| `npm run scan -- <url>`           | Page scan + testability audit                                       |
-| `npm run check-report -- <path>`  | Validate a QA report against `docs/report-format.md`                |
-| `npm run role -- <role> "<task>"` | Run an agent role (needs a key)                                     |
-| `npm run triage -- <file>`        | Triage a failure JSON (needs a key)                                 |
+| Command                           | Does                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `npm test`                        | Local subjects + harness self-tests (unit, integration, api, e2e)                                      |
+| `npm run test:external`           | Third-party subjects, opt-in                                                                           |
+| `npm run check`                   | format + lint + typecheck                                                                              |
+| `npm run assert-quality`          | Test quality gate                                                                                      |
+| `npm run gate`                    | Release verdict, refusing stale results                                                                |
+| `npm run mutate`                  | Breaks each enforced rule deliberately and checks the suite notices                                    |
+| `npm run scan -- <url>`           | Page scan + testability audit (`SCAN_DEEP=1` also probes hover, keyboard, responsive, scroll and zoom) |
+| `npm run crawl -- <url>`          | Crawl the site: link graph, broken links, orphans, template clusters                                   |
+| `npm run targets`                 | Every app and the environments it can be pointed at                                                    |
+| `npm run check-report -- <path>`  | Validate a QA report against `docs/report-format.md`                                                   |
+| `npm run role -- <role> "<task>"` | Run an agent role (needs a key)                                                                        |
+| `npm run triage -- <file>`        | Triage a failure JSON (needs a key)                                                                    |
 
 Anything needing a key reads it from `.env` — see `.env.example`. `.env` is gitignored;
 never commit one.

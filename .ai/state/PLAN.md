@@ -115,10 +115,31 @@ write-refusal on a live system.
 | E6  | **Session report**        | NOT ENFORCED — the skill asks for observations/questions/defects/not-reached and nothing checks it. Route through `check-report`                                                               | nothing    |
 | E7  | **A real session**        | NOT RUN — the empirical test of whether any of the above is enough                                                                                                                             | E5, a key  |
 
-## Next capability: a crawler (agreed 2026-09-10)
+## The crawler — BUILT 2026-09-10, with two gaps still open
 
-Everything built so far probes **one page**. A crawler models the **site** — the
-link graph rather than the DOM — and answers questions no per-page scan can.
+`npm run crawl -- <url>` models the **site** rather than a page. It asks the site
+first — `robots.txt` rules and `Crawl-delay` are obeyed, `sitemap.xml` seeds the
+queue — and only discovers what is not declared. Fetch-first, escalating to a real
+browser when a page turns out to be a shell.
+
+Verified on two sites: the-internet never needed a browser, the Polymer shop
+escalated every page and produced `/detail/mens_outerwear/{slug}` x13 and a
+checkout template varying on `shipCountry, billCountry, ccExpMonth, ccExpYear`.
+Twenty-two pages collapsed to four shapes.
+
+**Still open, deliberately not rushed:**
+
+| #   | Gap                                                                                                                        | Why it is not yet done                                                                                                                                                         |
+| --- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| C1  | **The crawl writes no artefact.** Console output only, so nothing can diff two crawls or use the map as a baseline         | Entangled with A1 accumulation, A2 provenance and E3 identity. What it should eventually write is a diffable baseline, and bolting on a JSON dump now would be the wrong shape |
+| C2  | **The evidence base is two sites**, and `minVariants = 3` in `induceTemplates` is an unvalidated guess, not a tuned number | Needs a large site, a paginated one, and one with query-string routing. That is its own activity                                                                               |
+
+Fixed before the first push: bounds now come from `EnvironmentPolicy` (prod crawls
+25 pages a second apart, local 150 with no delay, and the command line may only
+tighten that, never loosen it), and the output declares what it cannot follow so
+the coverage count is not read as a total.
+
+What the graph gives that a page scan cannot:
 
 |                           | Why it cannot come from page scanning                                                                                                                                                                                                                                   |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
