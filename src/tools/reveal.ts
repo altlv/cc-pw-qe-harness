@@ -119,6 +119,36 @@ function describe(signature: string): string {
  * worth stating plainly: client-side only, removed afterwards, reaching no
  * server. A read-only policy forbids changing the *system*, not repainting a page.
  */
+/**
+ * Parks the pointer somewhere that is hovering nothing.
+ *
+ * `mouse.move(0, 0)` reads as "no longer hovering" and is not: the top-left
+ * corner is over whatever the page put there, and a control anchored at the
+ * origin stays hovered — which makes a genuine hover reveal look like something
+ * that was on screen all along. So find a point the browser resolves to the page
+ * background and park there instead.
+ */
+async function restHover(page: Page): Promise<void> {
+  const free = await page
+    .evaluate(() => {
+      for (let x = window.innerWidth - 2; x > 0; x -= 40) {
+        for (let y = window.innerHeight - 2; y > 0; y -= 40) {
+          const at = document.elementFromPoint(x, y);
+          if (at === null || at === document.body || at === document.documentElement) {
+            return { x, y };
+          }
+        }
+      }
+      return null;
+    })
+    .catch(() => null);
+
+  // No free point means the page covers its whole viewport. Falling back is
+  // honest — the control below then simply has less to say, which is better than
+  // pretending the pointer is nowhere.
+  await page.mouse.move(free?.x ?? 0, free?.y ?? 0).catch(() => undefined);
+}
+
 export async function detectHoverReveals(
   page: Page,
   options: RevealOptions = {},
@@ -164,7 +194,9 @@ export async function detectHoverReveals(
     [CONTAINER, INTERACTIVE, PROBE_ATTRIBUTE, maxProbes] as [string, string, string, number],
   );
 
-  const reveals: Reveal[] = [];
+  // Raw signatures are kept rather than descriptions, because they still have to
+  // survive the control below.
+  const claims: { by: string; signatures: string[] }[] = [];
 
   for (const candidate of marked) {
     try {
@@ -189,9 +221,9 @@ export async function detectHoverReveals(
     );
 
     if (appeared.length > 0) {
-      reveals.push({
+      claims.push({
         by: `hover ${JSON.stringify(candidate.label)}`,
-        revealed: [...new Set(appeared)].map(describe),
+        signatures: [...new Set(appeared)],
       });
     }
   }
@@ -201,7 +233,30 @@ export async function detectHoverReveals(
       el.removeAttribute(probeAttribute);
     }
   }, PROBE_ATTRIBUTE);
-  await page.mouse.move(0, 0).catch(() => undefined);
+  await restHover(page);
+
+  // The control group, and the whole reason this pass can be believed.
+  //
+  // Without it, anything that appeared *during* the pass was attributed *to* the
+  // pass. Against a real site that meant a promotional button which arrives on its
+  // own after about sixteen seconds was reported as revealed by hovering six
+  // different links — confidently, specifically wrong, six times over.
+  //
+  // A hover reveal is defined by disappearing when the hover stops. Anything still
+  // on screen with nothing hovered arrived by itself, and belongs to
+  // `detectLateArrivals`, which is the pass that exists to find exactly that.
+  //
+  // eslint-disable-next-line no-restricted-syntax
+  await page.waitForTimeout(settleMs);
+  const withoutHover = new Set(await visibleSignatures(page));
+
+  const reveals: Reveal[] = [];
+  for (const claim of claims) {
+    const stillHoverOnly = claim.signatures.filter((signature) => !withoutHover.has(signature));
+    if (stillHoverOnly.length > 0) {
+      reveals.push({ by: claim.by, revealed: stillHoverOnly.map(describe) });
+    }
+  }
 
   return reveals;
 }

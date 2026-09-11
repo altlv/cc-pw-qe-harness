@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { accessibleNameFrom, type NameParts } from './accessible-name.js';
 
 /**
  * Testability, as this harness defines it:
@@ -169,6 +170,11 @@ export async function scanPage(
       const SELECTOR =
         'button, a[href], input, select, textarea, [role=button], [role=link], [role=tab], [role=checkbox], [role=switch], [role=menuitem], [contenteditable=true]';
 
+      // Scrolling is needed to judge occlusion honestly (see below), so the
+      // position is restored before returning — a read-only scan must not leave
+      // the page somewhere the caller did not put it.
+      const scrolledFrom = { x: window.scrollX, y: window.scrollY };
+
       const forms = Array.from(document.querySelectorAll('form'));
 
       // Frames are a blind spot, not an absence. querySelectorAll never crosses
@@ -205,7 +211,7 @@ export async function scanPage(
         }
       }
 
-      return {
+      const result = {
         title: document.title,
         forms: forms.length,
         frames,
@@ -244,16 +250,27 @@ export async function scanPage(
             // Can it actually be acted on? Identifying an element is only half of
             // testability; a control that is covered, off-screen or disabled is
             // addressable and still unusable.
-            const rect = el.getBoundingClientRect();
             let blocker: string | null = null;
 
+            // Ask the question in the layout the click will actually happen in.
+            //
+            // Playwright scrolls an element into view before acting on it, so
+            // hit-testing the page where it happens to be sitting answers about a
+            // moment that never occurs. Against a real site that produced two
+            // confident "covered by <section>" findings for links a trial click
+            // opens without complaint. The reasoning was already written down one
+            // branch above — being below the fold is not a blocker, because
+            // Playwright scrolls first — and simply had not been carried across to
+            // occlusion.
+            el.scrollIntoView({ block: 'center', inline: 'center' });
+
+            const rect = el.getBoundingClientRect();
             const centreX = rect.left + rect.width / 2;
             const centreY = rect.top + rect.height / 2;
-            // Being below the fold is NOT a blocker: Playwright scrolls an element
-            // into view before acting on it. And elementFromPoint only answers for
-            // points inside the viewport — clamping an off-screen centre onto the
-            // edge samples a different element entirely and invents an overlay that
-            // is not there. So occlusion is only judged where it can be observed.
+            // elementFromPoint only answers for points inside the viewport, and an
+            // element taller than the viewport still has its centre outside it even
+            // after scrolling. Clamping onto the edge samples something else
+            // entirely, so occlusion is only judged where it can be observed.
             const centreInView =
               centreX >= 0 && centreX < window.innerWidth && centreY >= 0 && centreY < innerHeight;
 
@@ -300,6 +317,18 @@ export async function scanPage(
                     ?.textContent ?? null)
                 : null,
               text: (el as HTMLElement).innerText ?? null,
+              // An icon button or a logo link has no text of its own; the alt of
+              // the image inside it is what names it.
+              imageAlt: Array.from(el.querySelectorAll('img[alt]'))
+                .map((image) => image.getAttribute('alt') ?? '')
+                .filter((alt) => alt !== '')
+                .join(' '),
+              // input[type=submit] is labelled by its value, not by any text.
+              value:
+                el.tagName === 'INPUT' && (input.type === 'submit' || input.type === 'button')
+                  ? (el.getAttribute('value') ?? null)
+                  : null,
+              title: el.getAttribute('title'),
               placeholder: el.getAttribute('placeholder'),
               stateAttributes: state,
               formIndex: owningForm === null ? null : forms.indexOf(owningForm),
@@ -329,18 +358,15 @@ export async function scanPage(
             };
           }),
       };
+
+      window.scrollTo(scrolledFrom.x, scrolledFrom.y);
+      return result;
     },
     [testIdAttr, scope, STATE_ATTRIBUTES] as [string, string | null, string[]],
   );
 
   const partial = collected.elements.map((raw) => {
-    const accessible =
-      raw.ariaLabel?.trim() ||
-      raw.labelledByText?.trim() ||
-      raw.labelText?.trim() ||
-      raw.text?.trim().slice(0, 80) ||
-      raw.placeholder?.trim() ||
-      null;
+    const accessible = accessibleNameFrom(raw satisfies NameParts);
 
     // Framework-generated ids (React's :r0:, Ember, ExtJS) change between builds,
     // so they are no better than a positional selector.

@@ -89,6 +89,33 @@ export function assessGate(input: GateInput): Verdict {
     (record) => record.status === 'ambiguous' || record.status === 'lost',
   );
   const misdirected = heals.filter((record) => record.status === 'wrong-page');
+  const drifted = heals.filter((record) => record.status === 'drifted');
+
+  if (drifted.length > 0) {
+    // The test passed and the selector worked. What is in doubt is whether it
+    // worked on the control the test was written about — an id recycled onto a
+    // different button resolves perfectly and proves nothing.
+    risks.push(`${drifted.length} locator(s) resolve to something that changed`);
+    reasons.push({
+      category: 'correctness',
+      severity: 'high',
+      detail:
+        `${drifted.length} locator(s) still resolve but no longer match what they were ` +
+        `baselined against: ` +
+        drifted
+          .slice(0, 5)
+          .map(
+            (record) =>
+              `${record.selector} was ${record.was}${record.now === null ? '' : `, now ${record.now}`}`,
+          )
+          .join('; '),
+      evidence: 'heal journal',
+    });
+    recommendations.push(
+      'Confirm each drifted locator still points at the control its test is about. A selector ' +
+        'that resolves is not the same as a test that is still asking the original question.',
+    );
+  }
 
   if (healed.length > 0) {
     // Not a blocker. The behaviour was exercised and it worked; what was lost is

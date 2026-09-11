@@ -2,8 +2,10 @@ import type { Locator, Page } from '@playwright/test';
 import {
   describeFingerprint,
   explainMatch,
+  contradictions,
   findBest,
   isStableId,
+  score,
   type Fingerprint,
 } from './identity.js';
 import { defaultRole } from './page-scanner.js';
@@ -55,8 +57,18 @@ export interface Baseline {
 }
 
 export type HealStatus =
-  /** The original selector still resolves to exactly one element. */
+  /** The original selector still resolves to the control it was baselined against. */
   | 'intact'
+  /**
+   * The selector resolves to exactly one element, but that element no longer
+   * looks like what was baselined.
+   *
+   * The locator is still handed back — the selector is what the test asked for,
+   * and refusing here would fail every legitimate rename. But the run must say so,
+   * because the other reading is that an id was recycled onto a different control
+   * and the test is now exercising something nobody meant.
+   */
+  | 'drifted'
   /** The original found nothing; one candidate was clearly the same control. */
   | 'healed'
   /** Either the original matched several, or no candidate was clearly best. */
@@ -376,15 +388,55 @@ function sameOrigin(left: string, right: string): boolean {
  * `name` is a contract with the server and changing it breaks the backend; an id
  * is decoration, and the next redesign can regenerate it freely.
  */
-export function proposeSelector(fingerprint: Fingerprint, testIdAttribute = 'data-testid'): string {
-  if (fingerprint.testId !== null) return `[${testIdAttribute}="${fingerprint.testId}"]`;
-  if (fingerprint.fieldName !== null) return `[name="${fingerprint.fieldName}"]`;
-  if (isStableId(fingerprint.id)) return `#${fingerprint.id}`;
+export function proposalLadder(
+  fingerprint: Fingerprint,
+  testIdAttribute = 'data-testid',
+): string[] {
+  const rungs: string[] = [];
+  if (fingerprint.testId !== null) rungs.push(`[${testIdAttribute}="${fingerprint.testId}"]`);
+  if (fingerprint.fieldName !== null) rungs.push(`[name="${fingerprint.fieldName}"]`);
+  if (isStableId(fingerprint.id)) rungs.push(`#${fingerprint.id}`);
   if (fingerprint.role !== null && fingerprint.name !== null) {
-    return `role=${fingerprint.role}[name=${JSON.stringify(fingerprint.name)}]`;
+    rungs.push(`role=${fingerprint.role}[name=${JSON.stringify(fingerprint.name)}]`);
   }
-  if (fingerprint.name !== null) return `text=${JSON.stringify(fingerprint.name)}`;
-  return fingerprint.tag;
+  if (fingerprint.name !== null) rungs.push(`text=${JSON.stringify(fingerprint.name)}`);
+  return rungs;
+}
+
+/** The best rung, without asking the page whether it actually works. */
+export function proposeSelector(
+  fingerprint: Fingerprint,
+  testIdAttribute = 'data-testid',
+): string | null {
+  return proposalLadder(fingerprint, testIdAttribute)[0] ?? null;
+}
+
+/**
+ * The best rung that resolves to exactly one element on this page.
+ *
+ * Proposing without checking was its own defect: two row links distinguished only
+ * by their href healed correctly and decisively, and the record then advised
+ * `role=link[name="Edit"]` — which matches both, so anyone following the advice
+ * traded a broken selector for a strict-mode violation.
+ *
+ * Null when no rung is unique. That is not a failure of the healer; it is a
+ * finding about the page. A control with no selector that singles it out is
+ * exactly what `auditTestability` calls ambiguous, and saying so is more useful
+ * than inventing a selector that does not work.
+ */
+async function verifiedProposal(
+  page: Page,
+  fingerprint: Fingerprint,
+  testIdAttribute?: string,
+): Promise<string | null> {
+  for (const rung of proposalLadder(fingerprint, testIdAttribute)) {
+    const count = await page
+      .locator(rung)
+      .count()
+      .catch(() => 0);
+    if (count === 1) return rung;
+  }
+  return null;
 }
 
 /**
@@ -411,13 +463,6 @@ export async function resolveLocator(
   const original = page.locator(baseline.selector);
   const matches = await original.count();
 
-  if (matches === 1) {
-    return {
-      locator: original,
-      record: { ...base, status: 'intact', now: null, proposed: null, evidence: 'selector intact' },
-    };
-  }
-
   if (matches > 1) {
     // Not a healing problem. The selector resolves — to too much. Choosing one
     // would turn a strict-mode violation, which is a loud and accurate failure,
@@ -434,7 +479,7 @@ export async function resolveLocator(
     };
   }
 
-  if (!sameOrigin(url, baseline.url)) {
+  if (matches === 0 && !sameOrigin(url, baseline.url)) {
     // The classic self-healing disaster: the test navigated somewhere it should
     // not have, the element is "missing" for that reason, and the healer finds a
     // plausible lookalike on the wrong site. The test then passes having proved
@@ -452,6 +497,67 @@ export async function resolveLocator(
   }
 
   const candidates = await harvestCandidates(page, options);
+
+  if (matches === 1) {
+    // A resolving selector still wins — but *which* element it resolves to is now
+    // checked rather than assumed. Storing a fingerprint and then never looking at
+    // it on the common path meant an id recycled onto a different control passed
+    // in silence: `#primary` went from "Delete account" to "Subscribe" and the run
+    // reported nothing at all.
+    const index = await indexOfSelector(
+      page,
+      baseline.selector,
+      candidates.map((c) => c.path),
+    );
+
+    if (index < 0) {
+      // It resolves to something the healer would never have offered as a
+      // candidate — hidden, or not interactive. Worth saying, because the two
+      // halves disagreeing about what counts as an element is how a locator ends
+      // up pointing at a hidden twin of the control the test meant.
+      return {
+        locator: original,
+        record: {
+          ...base,
+          status: 'drifted',
+          now: null,
+          proposed: null,
+          evidence: 'resolves to an element that is hidden or not interactive',
+        },
+      };
+    }
+
+    const found = candidates[index]!;
+    const agreement = score(baseline.fingerprint, found.fingerprint);
+    const conflicts = contradictions(agreement);
+
+    if (conflicts.length === 0) {
+      return {
+        locator: original,
+        record: {
+          ...base,
+          status: 'intact',
+          now: null,
+          proposed: null,
+          evidence: 'selector intact',
+        },
+      };
+    }
+
+    return {
+      locator: original,
+      record: {
+        ...base,
+        status: 'drifted',
+        now: describeFingerprint(found.fingerprint),
+        proposed: await verifiedProposal(page, found.fingerprint, options.testIdAttribute),
+        evidence:
+          `still resolves, but ${conflicts.join(' and ')} now disagree with the baseline — ` +
+          explainMatch(agreement),
+      },
+    };
+  }
+
   const ranked = findBest(
     baseline.fingerprint,
     candidates.map((candidate) => candidate.fingerprint),
@@ -516,7 +622,7 @@ export async function resolveLocator(
       ...base,
       status: 'healed',
       now: describeFingerprint(winner.fingerprint),
-      proposed: proposeSelector(winner.fingerprint, options.testIdAttribute),
+      proposed: await verifiedProposal(page, winner.fingerprint, options.testIdAttribute),
       evidence: explainMatch(ranked.best.result),
     },
   };
@@ -524,6 +630,7 @@ export async function resolveLocator(
 
 export interface HealSummary {
   intact: number;
+  drifted: number;
   healed: number;
   ambiguous: number;
   lost: number;
@@ -555,6 +662,7 @@ export class HealJournal {
       this.records.filter((record) => record.status === status).length;
     return {
       intact: count('intact'),
+      drifted: count('drifted'),
       healed: count('healed'),
       ambiguous: count('ambiguous'),
       lost: count('lost'),

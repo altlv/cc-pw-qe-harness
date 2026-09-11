@@ -325,6 +325,60 @@ const MUTATIONS: Mutation[] = [
     replace: '          captured.set(key, await captureBaseline(page, selector));',
     breaks: 'Baselines must only be captured when a run explicitly asks for it',
   },
+  {
+    file: 'src/tools/page-scanner.ts',
+    find: "            el.scrollIntoView({ block: 'center', inline: 'center' });",
+    replace: '            // mutated: hit-test where the element happens to be sitting',
+    breaks: 'Occlusion must be judged after scrolling, because Playwright scrolls before clicking',
+  },
+  {
+    file: 'src/tools/page-scanner.ts',
+    find: '      window.scrollTo(scrolledFrom.x, scrolledFrom.y);',
+    replace: '      // mutated: scroll position left wherever the scan ended',
+    breaks: 'A read-only scan must leave the page at the scroll position it found it',
+  },
+  {
+    file: 'src/tools/accessible-name.ts',
+    find: '    clean(parts.imageAlt)?.slice(0, 80) ??',
+    replace: '',
+    breaks: 'An image-only link must be named by its image alt, as every browser names it',
+  },
+  {
+    file: 'src/tools/accessible-name.ts',
+    find: '    clean(parts.value) ??',
+    replace: '',
+    breaks: 'A submit input must be named by its value, which is its only label',
+  },
+  {
+    file: 'src/tools/reveal.ts',
+    find: '    const stillHoverOnly = claim.signatures.filter((signature) => !withoutHover.has(signature));',
+    replace: '    const stillHoverOnly = claim.signatures;',
+    breaks: 'A hover reveal must disappear when the hover stops, or it arrived on its own',
+  },
+  {
+    file: 'src/tools/heal.ts',
+    find: '    if (conflicts.length === 0) {',
+    replace: '    if (true) {',
+    breaks: 'A selector resolving to a contradicting element must be reported, not called intact',
+  },
+  {
+    file: 'src/tools/heal.ts',
+    find: '    if (index < 0) {',
+    replace: '    if (false) {',
+    breaks: 'A selector resolving to a hidden element must not be reported as healthy',
+  },
+  {
+    file: 'src/tools/heal.ts',
+    find: '    if (count === 1) return rung;',
+    replace: '    return rung;',
+    breaks: 'A proposed selector must resolve to exactly one element',
+  },
+  {
+    file: 'src/qe/gate.ts',
+    find: 'risks.push(`${drifted.length} locator(s) resolve to something that changed`);',
+    replace: '// mutated: drift no longer surfaces',
+    breaks: 'A locator that drifted must reach the gate',
+  },
 ];
 
 const PLAYWRIGHT = resolve('node_modules/@playwright/test/cli.js');

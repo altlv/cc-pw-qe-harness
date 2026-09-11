@@ -269,14 +269,14 @@ test.describe('refusing to heal', () => {
     const { locator, record } = await resolveLocator(page, baseline);
 
     expect(
-      record.status,
-      'the selector still resolves, so it wins — fingerprint matching must not get a vote',
-    ).toBe('intact');
-    expect(
       await locator?.textContent(),
       'second-guessing a working selector would silently re-point the test at the other button',
     ).toBe('Store');
-    expect(record.proposed, 'nothing was healed, so there is nothing to propose').toBeNull();
+    expect(
+      record.status,
+      'the selector wins and keeps its element — but its words contradict the baseline, and saying nothing about that is how a recycled id passes in silence',
+    ).toBe('drifted');
+    expect(record.evidence).toContain('disagree with the baseline');
   });
 });
 
@@ -296,5 +296,103 @@ test.describe('capturing a baseline', () => {
   test('should refuse to describe a selector that matches nothing', async ({ page }) => {
     await page.setContent(`<button id="only">Only</button>`);
     await expect(captureBaseline(page, '#missing')).rejects.toThrow(/matches nothing/);
+  });
+});
+
+test.describe('a selector that resolves, to the wrong thing', () => {
+  test('should report drift when an id is recycled onto a different control', async ({ page }) => {
+    // The silent pass this check exists for. The selector works, so nothing fails,
+    // and the test is now exercising a control nobody meant it to touch.
+    await page.setContent(`<button id="primary">Delete account</button>`);
+    const baseline = await captureBaseline(page, '#primary');
+
+    await page.setContent(`<button id="primary">Subscribe</button>`);
+    const { locator, record } = await resolveLocator(page, baseline);
+
+    expect(
+      record.status,
+      'storing a fingerprint and never reading it on the common path is the same as not storing it',
+    ).toBe('drifted');
+    expect(record.now, 'the record has to name what it points at now').toBe('button "Subscribe"');
+    expect(
+      locator,
+      'the locator is still handed back — the selector is what the test asked for, and refusing here would fail every legitimate rename',
+    ).not.toBeNull();
+  });
+
+  test('should report drift when the selector resolves to a hidden element', async ({ page }) => {
+    // The two halves of the healer disagreed: count() sees hidden elements and the
+    // candidate harvest does not. So a locator could sit on a hidden twin of the
+    // control the test meant while a visible one stood next to it.
+    await page.setContent(`<button id="go">Go</button>`);
+    const baseline = await captureBaseline(page, '#go');
+
+    await page.setContent(`
+      <button id="go" style="display:none">Go</button>
+      <button id="visible-twin">Go</button>
+    `);
+    const { record } = await resolveLocator(page, baseline);
+
+    expect(
+      record.status,
+      'a locator sitting on a hidden twin of the control the test meant is not a healthy locator, and count() alone cannot tell',
+    ).toBe('drifted');
+    expect(record.evidence, 'the reason has to be readable, not inferred from a status').toContain(
+      'hidden',
+    );
+  });
+
+  test('should still call an unchanged control intact', async ({ page }) => {
+    // The check must not turn every run into a drift report.
+    await page.setContent(`<form><button id="save">Save</button></form>`);
+    const baseline = await captureBaseline(page, '#save');
+
+    await page.setContent(`<form><button id="save">Save</button></form>`);
+    const { record } = await resolveLocator(page, baseline);
+
+    expect(record.status).toBe('intact');
+  });
+});
+
+test.describe('proposing a selector that actually works', () => {
+  test('should not propose a selector matching more than one element', async ({ page }) => {
+    // Two row links distinguished only by href. The heal is correct and decisive;
+    // the obvious proposal is not, because both links are called "Edit".
+    await page.setContent(`
+      <ul>
+        <li><a id="e-aaaaaaaaaaaa" href="/items/1/edit">Edit</a></li>
+        <li><a id="e-bbbbbbbbbbbb" href="/items/2/edit">Edit</a></li>
+      </ul>
+    `);
+    const baseline = await captureBaseline(page, '#e-aaaaaaaaaaaa');
+
+    await page.setContent(`
+      <ul>
+        <li><a id="e-cccccccccccc" href="/items/1/edit">Edit</a></li>
+        <li><a id="e-dddddddddddd" href="/items/2/edit">Edit</a></li>
+      </ul>
+    `);
+    const { locator, record } = await resolveLocator(page, baseline);
+
+    expect(record.status, 'href still tells the two apart').toBe('healed');
+    expect(await locator?.getAttribute('href')).toBe('/items/1/edit');
+    expect(
+      record.proposed,
+      'advising role=link[name="Edit"] would trade a broken selector for a strict-mode violation; having no unique selector is a finding about the page, not something to paper over',
+    ).toBeNull();
+  });
+
+  test('should propose a rung that does resolve uniquely when one exists', async ({ page }) => {
+    await page.setContent(`<form><input id="qty" name="quantity" type="number"></form>`);
+    const baseline = await captureBaseline(page, '#qty');
+
+    await page.setContent(`<form><input id="field-77" name="quantity" type="number"></form>`);
+    const { record } = await resolveLocator(page, baseline);
+
+    expect(record.proposed).toBe('[name="quantity"]');
+    expect(
+      await page.locator(record.proposed ?? 'nothing').count(),
+      'the proposal is only advice if following it works',
+    ).toBe(1);
   });
 });

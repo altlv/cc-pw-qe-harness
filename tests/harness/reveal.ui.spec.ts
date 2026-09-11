@@ -252,3 +252,55 @@ test.describe('zoom', () => {
     ).toBe('');
   });
 });
+
+test.describe('hover, told apart from arriving on its own', () => {
+  test('should not credit a hover with a control that arrived by itself', async ({ page }) => {
+    // The failure this test exists for: against a real site, a promotional button
+    // that appears on its own after a delay was reported as revealed by hovering
+    // six different links. The pass had no control group, so anything appearing
+    // during it was attributed to it.
+    await page.setContent(`
+      <main>
+        <a href="/one" style="display:block;width:200px;height:40px">Chapter one</a>
+        <a href="/two" style="display:block;width:200px;height:40px">Chapter two</a>
+      </main>
+      <script>
+        setTimeout(() => {
+          const cta = document.createElement('button');
+          cta.textContent = 'Sign Up Free!';
+          document.body.appendChild(cta);
+        }, 200);
+      </script>
+    `);
+
+    const reveals = await detectHoverReveals(page, { settleMs: 250 });
+    const credited = reveals.flatMap((reveal) => reveal.revealed).join(' ');
+
+    expect(
+      credited,
+      'it is still on screen with nothing hovered, so it was never a hover reveal — it belongs to the late-arrivals pass',
+    ).not.toContain('Sign Up Free!');
+  });
+
+  test('should still report a control that really does need the hover', async ({ page }) => {
+    // The other direction. A control that vanishes when the pointer leaves is a
+    // genuine hover reveal, and silencing those would make the pass worthless.
+    await page.setContent(`
+      <style>
+        tr .menu { display: none; }
+        tr:hover .menu { display: inline-block; }
+        td { width: 200px; height: 40px; }
+      </style>
+      <table><tbody>
+        <tr><td>Row one</td><td><button class="menu">Delete row</button></td></tr>
+      </tbody></table>
+    `);
+
+    const reveals = await detectHoverReveals(page, { settleMs: 150 });
+
+    expect(
+      reveals.flatMap((reveal) => reveal.revealed).join(' '),
+      'row actions behind a hover rule are the commonest real case, and the control group must not swallow them',
+    ).toContain('Delete row');
+  });
+});

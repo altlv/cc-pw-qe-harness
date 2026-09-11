@@ -131,6 +131,15 @@ test.describe('release gate: healed locators', () => {
     expect(assessGate(input({ heals: [heal('intact'), heal('intact')] })).verdict).toBe('PASS');
   });
 
+  test('should raise a locator that still resolves but no longer matches its baseline', () => {
+    const verdict = assessGate(input({ heals: [heal('drifted', { now: 'button "Subscribe"' })] }));
+    expect(
+      verdict.verdict,
+      'the test passed, so this is not a blocker — but a recycled id resolves perfectly and proves nothing, so it cannot pass unmentioned either',
+    ).toBe('CONDITIONAL');
+    expect(verdict.risks.join(' ')).toContain('resolve to something that changed');
+  });
+
   test('should raise a locator that could not be healed', () => {
     const verdict = assessGate(input({ heals: [heal('lost'), heal('ambiguous')] }));
     expect(verdict.risks.join(' ')).toContain('could not be resolved');

@@ -364,6 +364,30 @@ export function score(before: Fingerprint, after: Fingerprint): MatchScore {
   return { score: total, signals, confident: total >= CONFIDENT_AT && strongAgreed };
 }
 
+/**
+ * Decisive signals that were comparable and **disagreed**.
+ *
+ * Not the same question as `confident`, and the difference matters. Confidence
+ * asks whether anything vouches for a match; this asks whether anything argues
+ * against one while something else vouches for it.
+ *
+ * The case that forced the distinction: an id recycled onto a different control.
+ * `#primary` went from "Delete account" to "Subscribe", and the score was
+ * confident — because the id agreed, and a matching hand-written id sets a 0.85
+ * floor. It is the strongest signal there is and it was telling the truth about
+ * the id. What it could not see was that the name and the role-plus-name both
+ * flatly disagreed at the same time.
+ *
+ * Absence of confirmation is deliberately *not* a contradiction. An element with
+ * nothing comparable but its tag is unconfirmable, not changed, and reporting
+ * those as drift would bury the real ones.
+ */
+export function contradictions(result: MatchScore): string[] {
+  return result.signals
+    .filter((signal) => signal.comparable && !signal.matched && signal.signal in FLOORS)
+    .map((signal) => signal.signal);
+}
+
 export interface Pairing {
   beforeIndex: number;
   afterIndex: number;

@@ -47,9 +47,20 @@ heuristics are separate tools that also support it. All are needed.
 
 Curated, not appended. Delete anything that stops being true.
 
-- **A detector that cries wolf is worse than none.** Two of ours did. Run a new rule
-  against a known-good page and confirm silence, not only against the case you built it
-  for.
+- **A detector that cries wolf is worse than none.** Several of ours have. Run a new
+  rule against a known-good page and confirm silence, not only against the case you
+  built it for.
+- **Measure in the state the action actually happens in.** The occlusion check
+  hit-tested elements where they sat, but Playwright scrolls before clicking, so it
+  was answering about a moment that never occurs. Right question, wrong instant.
+- **A difference detector needs a control group.** The hover pass credited hovers with
+  anything that appeared while it ran, including a promo button that arrives on its
+  own after ~16s. If the claim is "X caused Y", measure Y without X too.
+- **`mouse.move(0, 0)` is not "hovering nothing".** The origin is over whatever the
+  page put there. Find a point that resolves to the body first.
+- **Drift is contradiction, not weak confirmation.** Checking a recycled id by score
+  fails, because the id is the thing that agrees. Report a decisive signal that
+  _disagrees_ while another agrees; absence of confirmation is not evidence of change.
 - **A green suite is not evidence the assertions are good.** Run `npm run mutate`.
 - **`document.elementFromPoint` only answers inside the viewport.** Clamping an
   off-screen centre onto the edge samples a different element and invents an overlay.

@@ -110,3 +110,110 @@ test.describe('scanner measurements', () => {
     ).toBe(true);
   });
 });
+
+test.describe('judging whether a control can actually be clicked', () => {
+  test('should not call a control covered only at rest blocked, because Playwright scrolls first', async ({
+    page,
+  }) => {
+    // The exact shape that produced two confident false positives against a real
+    // site: a sticky header, and a control sitting under it at the page's current
+    // scroll position. Playwright scrolls an element into view before acting, so
+    // hit-testing where it happens to be sitting answers about a moment that never
+    // occurs.
+    await page.setContent(`
+      <style>
+        header { position: sticky; top: 0; height: 100px; background: #333; }
+        body { margin: 0; height: 4000px; }
+        #target { position: absolute; top: 2000px; }
+      </style>
+      <header>Site header</header>
+      <a id="target" href="/somewhere">Chapter 3</a>
+    `);
+    await page.evaluate(() => window.scrollTo(0, 1960));
+
+    const scan = await scanPage(page);
+    const target = scan.interactive.find((el) => el.accessibleName === 'Chapter 3');
+
+    expect(
+      target?.blocker,
+      'a trial click on this succeeds, so reporting it as covered sends someone hunting for an overlay that is not there',
+    ).toBeNull();
+  });
+
+  test('should still report a control a fixed overlay genuinely covers', async ({ page }) => {
+    // The other direction, and the reason the check exists at all. A detector that
+    // stops crying wolf by never barking is not an improvement.
+    await page.setContent(`
+      <style>
+        #consent { position: fixed; inset: 0; background: rgba(0,0,0,.6); }
+        body { margin: 0; height: 4000px; }
+        #target { position: absolute; top: 2000px; }
+      </style>
+      <a id="target" href="/somewhere">Accept terms</a>
+      <div id="consent">Cookies?</div>
+    `);
+
+    const scan = await scanPage(page);
+    const target = scan.interactive.find((el) => el.accessibleName === 'Accept terms');
+
+    expect(target?.blocker, 'the cookie banner really does eat the click').toContain('covered by');
+  });
+
+  test('should leave the page at the scroll position it found it', async ({ page }) => {
+    await page.setContent(`
+      <style>body { margin: 0; height: 4000px; }</style>
+      <a href="/a" style="position:absolute;top:3000px">Deep link</a>
+    `);
+    await page.evaluate(() => window.scrollTo(0, 500));
+
+    await scanPage(page);
+
+    expect(
+      await page.evaluate(() => window.scrollY),
+      'a read-only scan must not leave the page somewhere the caller did not put it — the next pass measures from wherever this one stopped',
+    ).toBe(500);
+  });
+});
+
+test.describe('naming a control that has no text of its own', () => {
+  test('should name an image-only link by the alt of its image', async ({ page }) => {
+    // Logos, icon buttons, product tiles and social links are all this shape. The
+    // accessible-name spec says the image's alt names the link, and every browser
+    // and Playwright's getByRole agree — so calling it unaddressable was wrong
+    // about a whole category of perfectly targetable controls.
+    await page.setContent(`<a href="/report"><img src="x.png" alt="Download report"></a>`);
+
+    const scan = await scanPage(page);
+
+    expect(scan.interactive[0]?.accessibleName).toBe('Download report');
+    expect(
+      scan.testability.filter((issue) => issue.kind === 'unaddressable'),
+      'it has a name, so there is nothing to report',
+    ).toHaveLength(0);
+  });
+
+  test('should still report an image-only link whose alt is empty', async ({ page }) => {
+    // alt="" means "decorative, skip me". On a link whose only content is that
+    // image, it leaves the link with no name at all — which is the real finding.
+    await page.setContent(`<a href="/"><img src="logo.png" alt=""></a>`);
+
+    const scan = await scanPage(page);
+
+    expect(scan.interactive[0]?.accessibleName).toBeNull();
+    expect(
+      scan.testability.some((issue) => issue.kind === 'unaddressable'),
+      'a link a screen reader announces as bare "link" is both an accessibility defect and untargetable',
+    ).toBe(true);
+  });
+
+  test('should name a submit input by its value', async ({ page }) => {
+    await page.setContent(`<form><input type="submit" value="Place order"></form>`);
+
+    const scan = await scanPage(page);
+
+    expect(
+      scan.interactive[0]?.accessibleName,
+      'input[type=submit] has no text content; its value is its label',
+    ).toBe('Place order');
+  });
+});

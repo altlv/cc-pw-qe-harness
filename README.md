@@ -127,9 +127,13 @@ Three rules make this safe rather than dangerous:
   one element, that element wins. Healing is a fallback, not a policy.
 - **A heal that is not decisive is refused.** Three identical `Edit` buttons give
   no answer, so the test fails with the rivals listed rather than picking one.
+- **A working selector is still checked.** It wins, and the run says so if the
+  element it resolves to now contradicts what was baselined — a recycled id
+  resolves perfectly and proves nothing.
 - **A healed run is not a clean run.** Every heal reaches `npm run gate` as a
-  recorded risk, naming the selector the test should be changed to say. A heal is
-  a proposal; nothing here rewrites a test file.
+  recorded risk, naming the selector the test should be changed to say — and that
+  selector is verified to resolve to exactly one element, or reported as absent. A
+  heal is a proposal; nothing here rewrites a test file.
 
 ### Test quality gate (`qe`)
 
