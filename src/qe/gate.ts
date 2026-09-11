@@ -1,3 +1,4 @@
+import type { HealRecord } from '../tools/heal.js';
 import type { QualityFinding } from '../quality/assertions.js';
 import type { Verdict, VerdictReason } from './verdict.js';
 
@@ -13,6 +14,8 @@ export interface GateInput {
   failedTests: string[];
   flakyTests: string[];
   qualityFindings: { file: string; finding: QualityFinding }[];
+  /** What happened to each locator that had a baseline. Absent when none did. */
+  heals?: HealRecord[];
   phase?: string;
 }
 
@@ -77,6 +80,70 @@ export function assessGate(input: GateInput): Verdict {
       severity: 'low',
       detail: `${weak.length} test(s) either prove only that a page loads, or depend on position/class selectors that will rot.`,
       evidence: 'npm run assert-quality',
+    });
+  }
+
+  const heals = input.heals ?? [];
+  const healed = heals.filter((record) => record.status === 'healed');
+  const unresolved = heals.filter(
+    (record) => record.status === 'ambiguous' || record.status === 'lost',
+  );
+  const misdirected = heals.filter((record) => record.status === 'wrong-page');
+
+  if (healed.length > 0) {
+    // Not a blocker. The behaviour was exercised and it worked; what was lost is
+    // the test's own description of what it exercised it against. That is debt,
+    // and blocking a release over a renamed button would be wrong — but letting
+    // it pass unmentioned is how a suite quietly stops describing the product.
+    risks.push(`${healed.length} locator(s) healed`);
+    reasons.push({
+      category: 'maintainability',
+      severity: 'medium',
+      detail:
+        `${healed.length} test locator(s) no longer resolve and were matched by fingerprint: ` +
+        healed
+          .slice(0, 5)
+          .map((record) => `${record.selector} -> ${record.proposed ?? '?'}`)
+          .join('; '),
+      evidence: 'heal journal',
+    });
+    recommendations.push(
+      'Review each healed locator and update the test to the proposed selector. A heal is a ' +
+        'proposal, and one that is never reviewed becomes a test nobody can read.',
+    );
+  }
+
+  if (unresolved.length > 0) {
+    risks.push(`${unresolved.length} locator(s) could not be resolved or healed`);
+    reasons.push({
+      category: 'testability',
+      severity: 'high',
+      detail:
+        `${unresolved.length} locator(s) found nothing and had no decisive replacement: ` +
+        unresolved
+          .slice(0, 5)
+          .map((record) => `${record.selector} (${record.evidence})`)
+          .join('; '),
+      evidence: 'heal journal',
+    });
+  }
+
+  if (misdirected.length > 0) {
+    // The element was missing because the run was somewhere it should not have
+    // been. Whatever else the suite reported about this page, it was not looking
+    // at the application under test.
+    blockers.push(`${misdirected.length} locator(s) resolved against the wrong origin`);
+    reasons.push({
+      category: 'correctness',
+      severity: 'critical',
+      detail:
+        `${misdirected.length} baseline(s) were used on a different origin than they were ` +
+        `recorded on: ` +
+        misdirected
+          .slice(0, 5)
+          .map((record) => record.evidence)
+          .join('; '),
+      evidence: 'heal journal',
     });
   }
 

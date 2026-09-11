@@ -66,6 +66,18 @@ Curated, not appended. Delete anything that stops being true.
   of a shared collection. Both have caused flakes here.
 - **`--reporter=line` on the CLI replaces the reporters configured in
   `playwright.config.ts`**, which silently starves the gate of its JSON results.
+- **`page.setContent` reuses the same window.** A second `customElements.define` of
+  the same tag throws, and the page quietly keeps the first definition — so a test
+  that thinks it loaded new markup is still running against the old. Attach shadow
+  roots imperatively in tests, or use a fresh tag name each time.
+- **Two guards for one rule means neither can be shown to be doing the work.** Both
+  mutations survive, each masked by the other. Belt-and-braces reads as caution and
+  is the opposite: pick the one guard that carries the rule.
+- **A Playwright fixture reads its inputs at setup, before the test body runs.**
+  Setting `process.env` inside a test to steer a fixture is always too late. Use a
+  fixture option and `test.use()`.
+- **A fixture's teardown runs after the test body.** A test cannot observe a file its
+  own teardown will write; assert it from the next test, in serial mode.
 
 ## Credentials
 

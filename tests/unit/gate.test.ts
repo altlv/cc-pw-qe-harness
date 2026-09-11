@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { assessGate, type GateInput } from '../../src/qe/gate.js';
+import type { HealRecord, HealStatus } from '../../src/tools/heal.js';
 import type { QualityFinding } from '../../src/quality/assertions.js';
 
 function input(over: Partial<GateInput> = {}): GateInput {
@@ -8,6 +9,21 @@ function input(over: Partial<GateInput> = {}): GateInput {
     failedTests: [],
     flakyTests: [],
     qualityFindings: [],
+    ...over,
+  };
+}
+
+function heal(status: HealStatus, over: Partial<HealRecord> = {}): HealRecord {
+  return {
+    selector: '#save',
+    status,
+    was: 'button "Save"',
+    now: null,
+    proposed: null,
+    evidence: 'evidence',
+    url: 'https://app.test/checkout',
+    at: '2026-09-11T00:00:00.000Z',
+    alternatives: [],
     ...over,
   };
 }
@@ -92,5 +108,40 @@ test.describe('release gate', () => {
     for (const reason of verdict.reasons) {
       expect(reason.evidence, `reason "${reason.detail}" has no evidence`).toBeDefined();
     }
+  });
+});
+
+test.describe('release gate: healed locators', () => {
+  test('should not let a healed locator pass unmentioned', () => {
+    const verdict = assessGate(
+      input({ heals: [heal('intact'), heal('healed', { proposed: '[name="quantity"]' })] }),
+    );
+    expect(
+      verdict.verdict,
+      'the behaviour was exercised and worked, so this is debt rather than a blocker',
+    ).toBe('CONDITIONAL');
+    expect(verdict.risks.join(' ')).toContain('healed');
+    expect(
+      verdict.recommendations.join(' '),
+      'a heal nobody reviews is a test that has quietly stopped describing the product',
+    ).toContain('update the test');
+  });
+
+  test('should stay PASS when every locator resolved as written', () => {
+    expect(assessGate(input({ heals: [heal('intact'), heal('intact')] })).verdict).toBe('PASS');
+  });
+
+  test('should raise a locator that could not be healed', () => {
+    const verdict = assessGate(input({ heals: [heal('lost'), heal('ambiguous')] }));
+    expect(verdict.risks.join(' ')).toContain('could not be resolved');
+  });
+
+  test('should FAIL when a baseline was used against a different origin', () => {
+    const verdict = assessGate(input({ heals: [heal('wrong-page')] }));
+    expect(
+      verdict.verdict,
+      'the run was looking at something other than the application under test, so nothing it reported about that page counts',
+    ).toBe('FAIL');
+    expect(verdict.blockers.join(' ')).toContain('wrong origin');
   });
 });

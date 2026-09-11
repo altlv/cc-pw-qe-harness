@@ -247,6 +247,84 @@ const MUTATIONS: Mutation[] = [
     replace: 'return undefined;',
     breaks: 'A production run must be narrowed to read-only tests, not left unfiltered',
   },
+  {
+    file: 'src/tools/heal.ts',
+    find: '  if (matches === 1) {',
+    replace: '  if (false) {',
+    breaks: 'A selector that still resolves must win outright, not be re-scored',
+  },
+  {
+    file: 'src/tools/heal.ts',
+    find: '  if (!sameOrigin(url, baseline.url)) {',
+    replace: '  if (false) {',
+    breaks: 'A baseline must never be matched against a different origin',
+  },
+  {
+    file: 'src/tools/heal.ts',
+    find: '  if (!ranked.decisive) {',
+    replace: '  if (false) {',
+    breaks: 'A heal that is too close to call must be refused, not resolved by rank',
+  },
+  {
+    file: 'src/tools/heal.ts',
+    find: '  if (isStableId(fingerprint.id)) return `#${fingerprint.id}`;',
+    replace: '  if (fingerprint.id !== null) return `#${fingerprint.id}`;',
+    breaks: 'A framework-generated id must not be proposed as the replacement selector',
+  },
+  {
+    file: 'src/tools/heal.ts',
+    find: '  if (found > 1) {',
+    replace: '  if (false) {',
+    breaks: 'A baseline must not be taken from a selector that matches several elements',
+  },
+  {
+    file: 'src/qe/gate.ts',
+    find: 'risks.push(`${healed.length} locator(s) healed`);',
+    replace: '// mutated: healed locators no longer surface',
+    breaks: 'A healed locator must not pass unmentioned',
+  },
+  {
+    file: 'src/qe/gate.ts',
+    find: 'blockers.push(`${misdirected.length} locator(s) resolved against the wrong origin`);',
+    replace: '// mutated: wrong-origin baselines no longer block',
+    breaks: 'A baseline used against the wrong origin must block the release',
+  },
+  {
+    file: 'src/qe/gate.ts',
+    find: 'risks.push(`${unresolved.length} locator(s) could not be resolved or healed`);',
+    replace: '// mutated: unresolved locators no longer surface',
+    breaks: 'A locator that could neither resolve nor heal must be reported',
+  },
+  {
+    file: 'src/qe/baselines.ts',
+    find: '  if (parsed.version !== FORMAT_VERSION) {',
+    replace: '  if (false) {',
+    breaks: 'A baseline file in an unknown format must be refused, not read as empty',
+  },
+  {
+    file: 'src/qe/baselines.ts',
+    find: "  const safe = name.replace(/[^a-z0-9]+/gi, '-').slice(0, 120);",
+    replace: '  const safe = name;',
+    breaks: 'A test title must not be able to steer where its journal is written',
+  },
+  {
+    file: 'src/qe/baselines.ts',
+    find: '  return `${path}::${selector}`;',
+    replace: '  return `${url}::${selector}`;',
+    breaks: 'One baseline must serve every environment, not be recaptured per host',
+  },
+  {
+    file: 'src/qe/baselines.ts',
+    find: '  for (const key of [...baselines.keys()].sort()) sorted[key] = baselines.get(key)!;',
+    replace: '  for (const key of baselines.keys()) sorted[key] = baselines.get(key)!;',
+    breaks: 'A recaptured baseline file must stay diffable, or no heal can be reviewed',
+  },
+  {
+    file: 'src/fixtures/harness.ts',
+    find: '          if (captureBaselines) captured.set(key, await captureBaseline(page, selector));',
+    replace: '          captured.set(key, await captureBaseline(page, selector));',
+    breaks: 'Baselines must only be captured when a run explicitly asks for it',
+  },
 ];
 
 const PLAYWRIGHT = resolve('node_modules/@playwright/test/cli.js');

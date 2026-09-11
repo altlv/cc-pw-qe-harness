@@ -461,7 +461,14 @@ function affordanceOf(
   return 'control';
 }
 
-function defaultRole(tag: string, type: string | null): string | null {
+/**
+ * The role a tag implies when the markup does not say one.
+ *
+ * Exported because the healer needs the same answer: comparing the raw `role`
+ * attribute would leave the signal uncomparable on the great majority of pages,
+ * which write no roles at all.
+ */
+export function defaultRole(tag: string, type: string | null): string | null {
   if (tag === 'button') return 'button';
   if (tag === 'a') return 'link';
   if (tag === 'select') return 'combobox';

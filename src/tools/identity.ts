@@ -428,6 +428,60 @@ export function matchAll(
   };
 }
 
+export interface Candidate {
+  index: number;
+  result: MatchScore;
+}
+
+export interface Ranked {
+  /** Best candidate, or null when none was defensible. */
+  best: Candidate | null;
+  /** Every candidate that cleared the threshold, strongest first. */
+  ranked: Candidate[];
+  /**
+   * True when the best is clearly ahead of the runner-up.
+   *
+   * The dangerous case is not "no match" — it is two candidates scoring nearly
+   * the same, where picking either is a coin toss dressed as a decision. A row
+   * of identical Edit buttons produces exactly that, and the caller needs to be
+   * told rather than handed the first one.
+   */
+  decisive: boolean;
+}
+
+/**
+ * One description against many candidates — "which control did this mean?".
+ *
+ * Distinct from `matchAll`, which is symmetric and pairs two observations of
+ * real elements. Here one side is an *intent*: written by a person or an agent,
+ * possibly imprecise, possibly never corresponding to anything on the page. So
+ * this ranks rather than pairs, and says when the ranking is too close to call.
+ *
+ * This is what makes an agent's "click Add to basket" safe against a page that
+ * says "Add to Bag": the intent gets grounded in a real control with named
+ * evidence, instead of the model picking whatever looked plausible.
+ */
+export function findBest(
+  wanted: Fingerprint,
+  candidates: Fingerprint[],
+  threshold = CONFIDENT_AT,
+): Ranked {
+  const ranked = candidates
+    .map((candidate, index) => ({ index, result: score(wanted, candidate) }))
+    .filter((entry) => entry.result.confident && entry.result.score >= threshold)
+    .sort((left, right) => right.result.score - left.result.score);
+
+  const best = ranked[0] ?? null;
+  const runnerUp = ranked[1];
+
+  // A margin, not a rank. Two candidates within a hair of each other mean the
+  // signals cannot tell them apart, whatever the ordering happens to be.
+  const decisive =
+    best !== null && (runnerUp === undefined || best.result.score - runnerUp.result.score > 0.1);
+
+  return { best, ranked, decisive };
+}
+
 /** A short human-readable label, for reports and proposals. */
 export function describeFingerprint(fingerprint: Fingerprint): string {
   // Ordered the way a person would refer to the thing, which on most sites means

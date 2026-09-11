@@ -1,6 +1,7 @@
 import { readdir, readFile, stat, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { analyzeSpec, type QualityFinding } from '../quality/assertions.js';
+import { loadHealRecords } from '../qe/baselines.js';
 import { assessGate, type RunStats } from '../qe/gate.js';
 import { formatVerdict } from '../qe/verdict.js';
 
@@ -109,7 +110,19 @@ for (const root of ['apps', 'tests']) {
   }
 }
 
-const verdict = assessGate({ stats, failedTests, flakyTests, qualityFindings, phase: 'release' });
+// What happened to every locator the run resolved through a baseline. Written
+// one file per test by the healing fixture, because parallel workers appending
+// to one log is shared mutable state.
+const heals = await loadHealRecords('artifacts/heals');
+
+const verdict = assessGate({
+  stats,
+  failedTests,
+  flakyTests,
+  qualityFindings,
+  heals,
+  phase: 'release',
+});
 
 console.log(formatVerdict(verdict));
 

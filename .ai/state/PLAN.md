@@ -33,7 +33,10 @@ Each was verified to build and pass on its own. CI green — run 34460682606.
 
 - **No exploratory session has ever been run.** Skill, role and checklist all exist;
   none has been exercised. The largest unproven claim in the repo.
-- **Self-healing does not exist** in any form. Blocked on E3.
+- **Self-healing has never run against a real application change.** The mechanism is
+  built and proven against staged changes — regenerated ids, reworded labels, a moved
+  link, a shadow-root control — plus the refusals. What no run has yet produced is a
+  heal caused by someone else changing a real app.
 - **Framework detection is ~92% unverified** — see D1.
 - Five of seven roles have never run. No role has written a _browser_ spec.
 - No skill has been invoked by name.
@@ -105,15 +108,16 @@ on W3.
 juice-shop local. The two remote subjects prove nothing about `storageState` or
 write-refusal on a live system.
 
-| #   | Stage                     | State                                                                                                                                                                                          | Blocked by |
-| --- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| E1  | **Observe**               | DONE — stack profile, affordances, input constraints, observable state, data dictionary from captured traffic                                                                                  | —          |
-| E2  | **Rules of engagement**   | DONE — session-start checklist plus an enforced policy; body capture gated by environment                                                                                                      | —          |
-| E3  | **Identity + matcher**    | **NOT BUILT — the keystone.** One scorer answers "are these two observations the same element?", and that primitive serves self-healing, fuzzy matching, drift detection **and** state-diffing | nothing    |
-| E4  | **Heuristics**            | NOT BUILT — trigger→move pairs. The cure for the weakness the skill already names: an agent reports a clean session because it never tried anything surprising                                 | nothing    |
-| E5  | **Interact** (the driver) | NOT BUILT — action selection under E4, obeying E2, diffing via E3; emits a state graph and an `unexplored` list carrying the reason each control was skipped                                   | E3, E4     |
-| E6  | **Session report**        | NOT ENFORCED — the skill asks for observations/questions/defects/not-reached and nothing checks it. Route through `check-report`                                                               | nothing    |
-| E7  | **A real session**        | NOT RUN — the empirical test of whether any of the above is enough                                                                                                                             | E5, a key  |
+| #   | Stage                     | State                                                                                                                                                                                                                                             | Blocked by |
+| --- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| E1  | **Observe**               | DONE — stack profile, affordances, input constraints, observable state, data dictionary from captured traffic                                                                                                                                     | —          |
+| E2  | **Rules of engagement**   | DONE — session-start checklist plus an enforced policy; body capture gated by environment                                                                                                                                                         | —          |
+| E3  | **Identity + matcher**    | DONE — one scorer answers "are these two observations the same element?" with decisive signals setting a floor rather than casting a vote; serves self-healing, fuzzy matching, drift detection **and** state-diffing                             | —          |
+| E3b | **Healer + baselines**    | DONE 2026-09-11 — `heal.ts` resolves a baseline against the live page, `qe/baselines.ts` keeps baselines between runs, the `healing` fixture is the call site, and every heal reaches the gate as a recorded risk naming its replacement selector | —          |
+| E4  | **Heuristics**            | NOT BUILT — trigger→move pairs. The cure for the weakness the skill already names: an agent reports a clean session because it never tried anything surprising                                                                                    | nothing    |
+| E5  | **Interact** (the driver) | NOT BUILT — action selection under E4, obeying E2, diffing via E3; emits a state graph and an `unexplored` list carrying the reason each control was skipped                                                                                      | E3, E4     |
+| E6  | **Session report**        | NOT ENFORCED — the skill asks for observations/questions/defects/not-reached and nothing checks it. Route through `check-report`                                                                                                                  | nothing    |
+| E7  | **A real session**        | NOT RUN — the empirical test of whether any of the above is enough                                                                                                                                                                                | E5, a key  |
 
 ## The crawler — BUILT 2026-09-10, with two gaps still open
 
@@ -133,6 +137,22 @@ Twenty-two pages collapsed to four shapes.
 | --- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | C1  | **The crawl writes no artefact.** Console output only, so nothing can diff two crawls or use the map as a baseline         | Entangled with A1 accumulation, A2 provenance and E3 identity. What it should eventually write is a diffable baseline, and bolting on a JSON dump now would be the wrong shape |
 | C2  | **The evidence base is two sites**, and `minVariants = 3` in `induceTemplates` is an unvalidated guess, not a tuned number | Needs a large site, a paginated one, and one with query-string routing. That is its own activity                                                                               |
+
+## Self-healing — BUILT 2026-09-11, with one gap open
+
+The loop is closed and gated: capture a baseline -> store it -> a later run finds the
+selector no longer resolves -> the control is identified by fingerprint -> the test
+proceeds and the heal is journalled -> `npm run gate` reports it as a risk naming the
+selector the test should be changed to say. Nothing rewrites a test file.
+
+Three refusals are what make it safe, and each is held by a mutation: a working
+selector is never re-scored, a heal that is not decisive is refused with its rivals
+listed, and a baseline is never matched against a different origin.
+
+| #   | Gap                                                                                                                                                        | Why it is not yet done                                                                                                                                |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1  | **No measured failure rate.** Every change the healer has faced was one we staged. Similo, tuned and peer-reviewed over 598 cases, still failed 12%        | Needs the page-mutation harness — generate ground truth by transforming a real scan, so the transformation is the label and accuracy becomes a number |
+| H2  | **No geometry signals.** Similo's optimised weights rank position and area highly; we carry only `siblingIndex`, so nameless controls have little to go on | Worth nothing until H1 can say whether adding them helped                                                                                             |
 
 Fixed before the first push: bounds now come from `EnvironmentPolicy` (prod crawls
 25 pages a second apart, local 150 with no delay, and the command line may only
