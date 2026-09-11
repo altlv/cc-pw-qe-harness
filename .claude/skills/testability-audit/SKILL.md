@@ -119,5 +119,5 @@ whether the app's _behaviour_ is testable, only its _surface_. And it is a snaps
 testability rots between releases, which is the argument for committing scans and
 diffing them.
 
-_Recreated for this harness. Selector-stability grading is implemented in
-`src/tools/page-scanner.ts`; the ladder it grades against is in `docs/conventions.md`._
+_Selector-stability grading is implemented in `src/tools/page-scanner.ts`; the ladder
+it grades against is in `docs/conventions.md`. Lineage and licences: `docs/sources.md`._

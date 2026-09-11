@@ -87,6 +87,4 @@ like flake: before concluding "test problem", check whether the app is genuinely
 non-deterministic under concurrency. Retrying a real race until it passes is how a
 production defect gets shipped.
 
-_Recreated for this harness. The measure–classify–fix–remeasure loop is standard test
-reliability practice; the two cause rows called out above come from defects found in
-this repo._
+_Lineage and licences: `docs/sources.md`._

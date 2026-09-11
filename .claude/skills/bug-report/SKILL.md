@@ -122,6 +122,4 @@ several bugs share a cause, and it is inherently biased toward what reproduces e
 "not reproducible" is very often premature. It is also reactive: preventing the next
 one is `test-design`'s job.
 
-_Reproduce–isolate–maximise–generalise–evidence–advocate, and oracle-backed argument,
-follow long-established bug advocacy practice (Kaner, Bach, Bolton). Recreated in our
-own words._
+_Lineage and licences: `docs/sources.md`._

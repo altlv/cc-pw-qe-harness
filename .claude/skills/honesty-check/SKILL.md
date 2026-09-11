@@ -76,3 +76,5 @@ The human needs truthful reporting, not cheerful reporting.
 
 A check that does not change your next action was theatre. If it found something,
 act on it now — not "from here on".
+
+_Lineage and licences: `docs/sources.md`._

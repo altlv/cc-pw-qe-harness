@@ -137,3 +137,5 @@ Update `.ai/state/PLAN.md` if the task spanned more than one sitting.
 UI tests done → offer API tests for the same feature, and vice versa. They catch
 different defects: the UI can look right over a failed write, and a passing endpoint
 says nothing about whether the user can reach it.
+
+_Lineage and licences: `docs/sources.md`._

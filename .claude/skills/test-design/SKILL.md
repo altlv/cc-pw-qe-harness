@@ -96,11 +96,13 @@ suggested level, say why and move it up — never leave a HIGH risk untested.
 | Rule combinations     | decision table                             |
 | Modes and transitions | state transition table                     |
 | Many parameters       | pairwise                                   |
+| Workflows over time   | sequence probes                            |
+| Code you can read     | branch coverage                            |
 | Unknown territory     | exploratory charter                        |
 
-Layer in order and stop when coverage matches risk: partitions and boundaries →
-pairwise → decision tables → hostile probes (null, empty, max length, unicode,
-injection strings).
+**Choosing one is this step; executing it is `test-techniques`** — the derivation
+rules, the coverage criteria, and the point at which a technique is finished. Naming a
+technique here and stopping is how a design ends up with one value per field.
 
 **Produces:** technique + data strategy per level.
 
@@ -144,6 +146,4 @@ nobody specified — pair it with `exploratory-session`. It also says nothing ab
 whether the assertions you write are any good; `npm run assert-quality` is the
 mechanical floor for that.
 
-_Risk-driven design, product-dimension decomposition and the test pyramid are
-long-standing testing practice (Kaner/Bach/Pettichord, Marselis, Cohn). Recreated here
-in our own words and wired to this repo's tooling._
+_Lineage and licences: `docs/sources.md`._

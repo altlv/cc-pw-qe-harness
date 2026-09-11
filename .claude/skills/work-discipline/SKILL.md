@@ -85,3 +85,5 @@ updating it every session, something volatile has leaked into it.
 
 The test: could someone continue this work tomorrow with no access to the
 conversation? If not, the end gate is not done.
+
+_Lineage and licences: `docs/sources.md`._

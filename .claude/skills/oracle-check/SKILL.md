@@ -51,5 +51,4 @@ Recommendation: file defect | raise question | no action
 - Beware the expectation oracle on its own. "I wouldn't have designed it that way" is
   a preference, and filing it as a defect spends credibility you need for real ones.
 
-The consistency-heuristic framing here is a long-standing idea in exploratory testing
-practice (Bach and Bolton's FEW HICCUPPS); this is our own wording of it.
+_Lineage and licences: `docs/sources.md`._

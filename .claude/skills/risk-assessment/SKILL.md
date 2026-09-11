@@ -117,5 +117,4 @@ nobody thought of — the unknown risk scores zero because it is never listed. P
 _probability of failure_, not _cost of testing_: a low-risk area that is trivially
 cheap to cover is still worth covering.
 
-_Impact × likelihood scoring is standard risk-based testing practice. Recreated in our
-own words and tied to this repo's coverage records and gate verdict._
+_Lineage and licences: `docs/sources.md`._

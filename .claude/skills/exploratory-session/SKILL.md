@@ -62,14 +62,47 @@ exploration — switch to structured work.
 Apply `oracle-check` continuously — "is this consistent with the docs? with the rest
 of the product? with itself?"
 
-Useful moves in this harness:
+### What to do when you find something
 
-- Drive `page.clock` to reach states real time makes expensive — expiry, timeout,
-  midnight rollover, long idle.
+The moves most often skipped, and the reason a session reports one defect and moves
+on when it should have reported five:
+
+- **Bugs cluster.** You found one. Test harder _right there_ before going anywhere
+  else. This is the single most valuable move on the list and the easiest to skip,
+  because finding something feels like finishing something.
+- **The same bug lives elsewhere.** A defect in one place usually exists in its
+  siblings. Found a wrong total in the cart? Check the order summary, the email, the
+  invoice.
+- **Rumble strip.** Something slightly odd means something badly wrong may be nearby.
+  Odd is a direction, not a verdict.
+- **Do not stop at what you expected.** Confirming your hypothesis ends the hunt
+  early. Look around it.
+- **Error-message marathon.** Trigger every error you can, then test hard _after_
+  dismissing each one. Recovery paths are where state goes bad.
+- **Déjà vu.** Reproduce every error you see. If the message changes on a second
+  identical attempt, something underneath is not deterministic.
+
+### Turning a finding into coverage, mid-session
+
+The moment you find a field with a declared bound, a rule with conditions, or
+anything with modes — that is not a different activity to be scheduled later. Reach
+for `test-techniques` and spend the six values now, while you are looking at it.
+
+### Moves this harness gives you
+
+- Run `npm run scan -- <url>` first and read the **map** section. It tells you how
+  large the play area is, and lists every input with the bounds the page declared.
 - Watch the network capture, not just the page. A silent 4xx behind a cheerful UI is
   the defect class this repo exists to catch.
 - Compare state before and after an action, not just the end state. Transitions hide
   more than destinations.
+- Drive `page.clock` to reach states real time makes expensive — expiry, timeout,
+  midnight rollover, long idle. (Needs a spec; an agent with shell access only cannot
+  reach it.)
+- **Look at the rendered page, not only the DOM** — and look the way
+  `visual-inspection` says to, not once at whatever the viewport happened to hold.
+  Its pre-flight is five checks and under two minutes, and it is where the cheapest
+  findings of any session come from.
 
 When stuck: ask someone, read the source, or reason from a system you already know.
 
@@ -103,5 +136,4 @@ into tests to keep their value. It also relies on noticing, which is exactly wha
 agent is weakest at: an agent will happily report a clean session because it never
 tried anything surprising. Assign hostile charters deliberately.
 
-_Charter-and-debrief exploratory practice follows session-based testing as developed
-by Bach, Bolton and Pyhäjärvi. Recreated in our own words for this harness._
+_Lineage and licences: `docs/sources.md`._
