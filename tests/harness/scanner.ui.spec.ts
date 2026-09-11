@@ -1,5 +1,6 @@
 import { test, expect } from '../../src/fixtures/harness.js';
-import { scanPage } from '../../src/tools/page-scanner.js';
+import { formatScan, scanPage } from '../../src/tools/page-scanner.js';
+import { probePage } from '../../src/tools/probe.js';
 
 /**
  * Scanner behaviour that only a real DOM can prove.
@@ -215,5 +216,147 @@ test.describe('naming a control that has no text of its own', () => {
       scan.interactive[0]?.accessibleName,
       'input[type=submit] has no text content; its value is its label',
     ).toBe('Place order');
+  });
+});
+
+test.describe('separating the map from the findings', () => {
+  test('should file a covered control as a product defect, not only an automation problem', async ({
+    page,
+  }) => {
+    // The whole reason for the split. A control nobody can click is a defect in
+    // the product; it used to be reported only as a "testability finding", which
+    // is why the first exploratory session read it as trivia about selectors.
+    await page.setContent(`
+      <style>#banner { position: fixed; inset: 0; background: rgba(0,0,0,.6); }</style>
+      <button id="buy">Buy now</button>
+      <div id="banner">Cookies?</div>
+    `);
+
+    const scan = await scanPage(page);
+    const covered = scan.testability.find((issue) => issue.kind === 'unreachable');
+
+    expect(
+      covered?.audience,
+      'a user cannot click it either, so the product owner needs this as much as the automator does',
+    ).toEqual(['product', 'automation']);
+  });
+
+  test('should keep an ambiguous selector out of the product findings', async ({ page }) => {
+    // The other direction: a person looking at two Edit buttons knows which one
+    // they mean. Strict mode does not. That is an automation problem only, and
+    // putting it in front of a product owner is noise.
+    await page.setContent(`
+      <table>
+        <tr><td>One</td><td><button>Edit</button></td></tr>
+        <tr><td>Two</td><td><button>Edit</button></td></tr>
+      </table>
+    `);
+
+    const scan = await scanPage(page);
+    const ambiguous = scan.testability.filter((issue) => issue.kind === 'ambiguous');
+
+    expect(ambiguous.length).toBeGreaterThan(0);
+    for (const issue of ambiguous) {
+      expect(issue.audience, 'ambiguity costs the automator, not the user').toEqual(['automation']);
+    }
+
+    const report = formatScan(scan);
+    const productSection = report.slice(
+      report.indexOf('PRODUCT FINDINGS'),
+      report.indexOf('AUTOMATION READINESS'),
+    );
+    expect(
+      productSection,
+      'the product section must stay readable by someone who does not care about selectors',
+    ).not.toContain('ambiguous');
+  });
+
+  test('should declare a frame as a blind spot rather than a finding', async ({ page }) => {
+    await page.setContent(`<iframe src="/inner.html"></iframe><button>Outside</button>`);
+
+    const scan = await scanPage(page);
+    const frame = scan.testability.find((issue) => issue.kind === 'unscanned-frame');
+
+    expect(
+      frame?.audience,
+      'an unscanned frame is the map admitting what it could not see — it is neither a defect nor a selector problem',
+    ).toEqual(['recon']);
+
+    const report = formatScan(scan);
+    expect(report).toContain('Blind spot:');
+    expect(
+      report.indexOf('Blind spot:'),
+      'blind spots belong to the map, so they must appear before the findings',
+    ).toBeLessThan(report.indexOf('PRODUCT FINDINGS'));
+  });
+
+  test('should order the three reports map, product, automation', async ({ page }) => {
+    await page.setContent(`<button>Go</button>`);
+    const report = formatScan(await scanPage(page));
+
+    expect(report.indexOf('THE MAP')).toBeLessThan(report.indexOf('PRODUCT FINDINGS'));
+    expect(
+      report.indexOf('PRODUCT FINDINGS'),
+      'automation readiness is written last, and only about what turned out worth keeping',
+    ).toBeLessThan(report.indexOf('AUTOMATION READINESS'));
+  });
+});
+
+test.describe('how complete the map admits to being', () => {
+  test('should include an input that only arrives after load', async ({ page, network }) => {
+    // The defect this closes. A real cart rendered its quantity field — declaring
+    // min=1 max=10 — after load, the probe only settled for SPA-ish pages, and the
+    // page was classified `enhanced`. So a boundary the page had written down never
+    // reached the map, and the technique that would have used it had nothing to read.
+    await page.setContent(`
+      <p>Server-rendered body</p>
+      <script>
+        setTimeout(() => {
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.id = 'qty';
+          input.min = '1';
+          input.max = '10';
+          document.body.appendChild(input);
+        }, 400);
+      </script>
+    `);
+
+    const result = await probePage(page, network);
+    const late = result.scan.interactive.find((el) => el.suggested.includes('qty'));
+
+    expect(
+      result.settled,
+      'the map reports how complete it is, and a page that did settle must not be reported as a floor',
+    ).toBe('settled');
+    expect(late, 'an input that arrives late is still an input').toBeDefined();
+    expect(
+      late?.constraints?.max,
+      'the bound is the whole point — a boundary probe has nothing to work from without it',
+    ).toBe('10');
+  });
+
+  test('should declare the inventory a floor when the page never settled', async ({ page }) => {
+    await page.setContent(`<button>Go</button>`);
+    const report = formatScan(await scanPage(page), { settled: 'timed-out' });
+
+    expect(
+      report,
+      'a short list that announces itself as short can be worked with; one that looks complete cannot',
+    ).toContain('INVENTORY IS A FLOOR');
+    expect(
+      report.indexOf('INVENTORY IS A FLOOR'),
+      'the caveat has to come before the counts it applies to',
+    ).toBeLessThan(report.indexOf('Interactive:'));
+  });
+
+  test('should not warn when the page did settle', async ({ page }) => {
+    await page.setContent(`<button>Go</button>`);
+    const report = formatScan(await scanPage(page), { settled: 'settled' });
+
+    expect(report, 'a caveat printed on every report is a caveat nobody reads').not.toContain(
+      'INVENTORY IS A FLOOR',
+    );
+    expect(report).toContain('stopped adding to itself');
   });
 });

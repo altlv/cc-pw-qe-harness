@@ -3,7 +3,7 @@ import { dirname, extname, join, basename } from 'node:path';
 import type { Page } from '@playwright/test';
 import type { NetworkRecorder } from '../capture/network.js';
 import type { CapturedCall } from '../capture/types.js';
-import { scanPage, formatScan, type PageScan } from './page-scanner.js';
+import { scanPage, formatScan, type PageScan, type Settling } from './page-scanner.js';
 import { detectStack, formatStack, stackAdvice, type StackProfile } from './stack.js';
 import { buildDataDictionary, formatDictionary, type EndpointShape } from './schema.js';
 import { detectInterstitial, formatInterstitial, type Interstitial } from './interstitial.js';
@@ -17,6 +17,7 @@ import {
   formatReveals,
   type KeyboardProfile,
   type Reveal,
+  type ZoomResult,
 } from './reveal.js';
 
 /**
@@ -42,6 +43,8 @@ export interface ProbeResult {
   lateArrivals: Reveal | null;
   scroll: Awaited<ReturnType<typeof detectScrollReveals>> | null;
   zoom: Awaited<ReturnType<typeof detectZoomReflow>> | null;
+  /** Whether the page had finished adding to itself when the inventory was taken. */
+  settled: Settling;
   /** Every captured call, in order. The raw log behind the dictionary. */
   calls: CapturedCall[];
 }
@@ -55,14 +58,32 @@ export async function probePage(
 
   // A client-rendered app is a shell at domcontentloaded. Scanning there reported
   // 2 controls on a Polymer list page that has 37 once rendered — we detected the
-  // SPA and then scanned it as though it were static. Wait for what the profile
-  // says this page needs, and never longer.
-  if (stack.rendering === 'spa' || stack.rendering === 'ssr-hydrated') {
-    await page.waitForLoadState('load').catch(() => undefined);
-    // networkidle is best-effort: an app that polls never reaches it, and waiting
-    // out that timeout on every scan would be worse than scanning slightly early.
-    await page.waitForLoadState('networkidle').catch(() => undefined);
-  }
+  // SPA and then scanned it as though it were static.
+  //
+  // The wait used to be for `spa` and `ssr-hydrated` only, which excluded the one
+  // tier that most needed it. `enhanced` means server-rendered HTML with JavaScript
+  // adding things afterwards — WordPress with plugins, Rails with Turbo, a jQuery
+  // shop — and it is the dominant shape of the real web. On a real cart page the
+  // quantity input, declaring `min=1 max=10`, was absent at domcontentloaded and at
+  // load, and present by networkidle. The scan happened at the first of those, so a
+  // boundary the page had written down never reached the map.
+  //
+  // So: settle unconditionally. Gating it on the rendering tier looked careful and
+  // was not — the tier is inferred from framework signals, and a page with no
+  // framework at all can still append to itself after load. Any rule that decides
+  // *whether* to wait is a rule that can be wrong about a page, and the cost of
+  // being wrong is a map that quietly omits things. A static page reaches
+  // networkidle almost immediately, so waiting always costs close to nothing.
+  await page.waitForLoadState('load').catch(() => undefined);
+  // networkidle is best-effort: an app that polls never reaches it, and waiting out
+  // that timeout on every scan would be worse than scanning slightly early. When it
+  // does time out the inventory is a floor, and the map has to say so rather than
+  // present a short list as a complete one.
+  const settledTo: Settling = await page
+    .waitForLoadState('networkidle')
+    .then((): Settling => 'settled')
+    .catch((): Settling => 'timed-out');
+  void stack.rendering;
 
   // The scanner used to assume data-testid. Ask the page which attribute it
   // actually uses — on an app that writes data-cy, assuming the default reports
@@ -98,6 +119,7 @@ export async function probePage(
   return {
     stack,
     interstitial,
+    settled: settledTo,
     scan,
     dictionary: buildDataDictionary(calls),
     hoverReveals,
@@ -110,13 +132,56 @@ export async function probePage(
   };
 }
 
+/**
+ * Defects the deep passes found, pulled out of the technical report.
+ *
+ * A 200% reflow failure is not a fact about the play area, it is a product defect
+ * with a standard behind it — and it used to be printed inside a section headed
+ * "What a static scan cannot see", where it read as trivia.
+ *
+ * Deliberately narrow. A control hidden at 375px is *not* listed: this harness
+ * cannot tell "replaced by a hamburger menu" from "gone", and the honest place
+ * for something we cannot judge is the map, as a question.
+ *
+ * Pure, and exported for that reason. A surviving mutation showed why: the rule
+ * lived inside a function that needed a browser, so nothing in the suite could
+ * reach it and blanking it left everything green.
+ */
+export function deepPassDefects(zoom: ZoomResult | null): string[] {
+  const found: string[] = [];
+  if (zoom === null) return found;
+
+  if (zoom.horizontalOverflow) {
+    found.push(
+      `  [high] reflow  content runs ${zoom.overflowPx}px past the viewport at ${zoom.percent}%`,
+      '      WCAG 1.4.10. Anyone who needs magnification has to scroll sideways to read a line.',
+    );
+  }
+  for (const control of zoom.tiny.slice(0, 5)) {
+    found.push(
+      `  [medium] small-target  ${control}`,
+      '      Click target under 24x24 CSS px (WCAG 2.5.8).',
+    );
+  }
+  for (const control of zoom.lost.slice(0, 5)) {
+    found.push(
+      `  [high] lost-at-zoom  ${control}`,
+      `      Visible at 100%, not visible at ${zoom.percent}%.`,
+    );
+  }
+  return found;
+}
+
 /** The human- and agent-readable digest. This is what goes in a prompt. */
 export function formatProbe(result: ProbeResult): string {
   const sections = [
     ...(result.interstitial !== null ? [formatInterstitial(result.interstitial), ''] : []),
     formatStack(result.stack),
     '',
-    formatScan(result.scan),
+    formatScan(result.scan, {
+      alsoProduct: deepPassDefects(result.zoom),
+      settled: result.settled,
+    }),
     '',
     '--- Data dictionary (from captured traffic) ---',
     '',

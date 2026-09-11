@@ -91,19 +91,19 @@ const MUTATIONS: Mutation[] = [
     breaks: 'The gate must refuse test results older than the source',
   },
   {
-    file: 'src/agents/roles.ts',
+    file: 'src/agents/roles/integration-tester.ts',
     find: 'Not for pure logic (unit-test-engineer) or anything needing a browser (e2e-coder).',
     replace: 'It is generally useful.',
     breaks: 'A role description must say when NOT to use it',
   },
   {
-    file: 'src/agents/roles.ts',
+    file: 'src/agents/roles/testability-reviewer.ts',
     find: 'Load: .claude/skills/testability-audit/SKILL.md,',
     replace: 'Load: .claude/skills/does-not-exist/SKILL.md,',
     breaks: 'A role must not point at a skill that does not exist',
   },
   {
-    file: 'src/agents/roles.ts',
+    file: 'src/agents/roles/investigator.ts',
     find: "Not for writing the fix, and not for a failure whose cause is already established.',\n  model: 'sonnet',\n  maxTurns: 25,\n  tools: ['Read', 'Grep', 'Glob', 'Bash'],",
     replace:
       "Not for writing the fix, and not for a failure whose cause is already established.',\n  model: 'sonnet',\n  maxTurns: 25,\n  tools: ['Read', 'Grep', 'Glob', 'Bash', 'Edit'],",
@@ -378,6 +378,44 @@ const MUTATIONS: Mutation[] = [
     find: 'risks.push(`${drifted.length} locator(s) resolve to something that changed`);',
     replace: '// mutated: drift no longer surfaces',
     breaks: 'A locator that drifted must reach the gate',
+  },
+  {
+    file: 'src/tools/page-scanner.ts',
+    find: "        audience: ['automation'],",
+    replace: "        audience: ['product', 'automation'],",
+    breaks: 'An ambiguous selector must not be put in front of a product owner as a defect',
+  },
+  {
+    file: 'src/tools/page-scanner.ts',
+    find: "      audience: ['recon'],",
+    replace: "      audience: ['product'],",
+    breaks: 'An unscanned frame is a declared blind spot, not a defect in the product',
+  },
+  {
+    file: 'src/tools/probe.ts',
+    find: '  if (zoom.horizontalOverflow) {',
+    replace: '  if (false) {',
+    breaks: 'A reflow failure must be reported as a product defect, not buried in the map',
+  },
+  {
+    file: 'src/tools/probe.ts',
+    find: "    .then((): Settling => 'settled')",
+    replace: "    .then((): Settling => 'timed-out')",
+    breaks: 'A settled page must not be reported as an incomplete inventory',
+  },
+  {
+    file: 'src/tools/page-scanner.ts',
+    find: "    ...(options.settled === 'timed-out'",
+    replace: '    ...(false',
+    breaks: 'An inventory taken before the page settled must declare itself a floor',
+  },
+  {
+    file: 'src/tools/probe.ts',
+    // Dropping the `load` wait alone changes nothing while networkidle still runs,
+    // so the mutation carrying this rule has to remove the networkidle wait.
+    find: '  const settledTo: Settling = await page',
+    replace: '  const settledTo: Settling = await Promise.resolve()',
+    breaks: 'Content a page adds after load must still reach the map',
   },
 ];
 

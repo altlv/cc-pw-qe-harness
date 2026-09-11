@@ -76,8 +76,37 @@ export interface ScannedElement {
   blocker: string | null;
 }
 
+/**
+ * Who a finding is for.
+ *
+ * The first exploratory session run with this harness drowned in technicalities,
+ * and this is why: one list mixed three audiences. A WCAG reflow failure is a
+ * **defect in the product**; a selector that matches two elements is a problem
+ * only for whoever automates it; an unscanned frame is neither, it is the map
+ * admitting what it could not see.
+ *
+ * Most findings here turn out to be `['product', 'automation']`, and that is the
+ * insight rather than a weakness of the split: a control with no accessible name
+ * is an accessibility defect that this harness had been filing as a selector
+ * complaint. Labelling it lets the tester read defects as defects and the
+ * automator still see everything.
+ */
+export type Audience = 'product' | 'automation' | 'recon';
+
+/**
+ * How complete the inventory is allowed to claim to be.
+ *
+ * An inventory taken before the page stopped adding to itself is a floor, not a
+ * total — the same distinction `crawl` already makes about page counts. Saying so
+ * matters more than the missing entries: a short list that announces itself as
+ * short can be worked with, and one that looks complete cannot.
+ */
+export type Settling = 'settled' | 'timed-out';
+
 export interface TestabilityIssue {
   severity: 'high' | 'medium';
+  /** Who should act on this. Never empty. */
+  audience: Audience[];
   kind:
     | 'ambiguous'
     | 'unaddressable'
@@ -528,6 +557,8 @@ export function auditTestability(
     issues.push({
       severity: 'medium',
       kind: 'unscanned-frame',
+      // Not a defect and not an automation problem: the map declaring a blind spot.
+      audience: ['recon'],
       element: `<iframe src="${src}">`,
       problem:
         'This scan does not cross into frames, so anything inside it is unexamined. A clean result above says nothing about this content.',
@@ -555,6 +586,9 @@ export function auditTestability(
       issues.push({
         severity: 'high',
         kind: 'unaddressable',
+        // Both halves, and the product half is the one that got lost: a control
+        // with no accessible name announces as nothing to a screen reader.
+        audience: ['product', 'automation'],
         element: describe,
         problem: 'No accessible name, no id and no test id — only reachable by position.',
         suggestion: 'Give it an accessible name (aria-label, or real label text).',
@@ -566,6 +600,9 @@ export function auditTestability(
       issues.push({
         severity: 'high',
         kind: 'ambiguous',
+        // The only automation-only finding here. A person looking at the page can
+        // see which Edit button they mean; strict mode cannot.
+        audience: ['automation'],
         element: describe,
         problem: `More than one element matches ${el.suggested}. A test using it fails on strict-mode violation, not on the behaviour it meant to check.`,
         suggestion:
@@ -581,6 +618,7 @@ export function auditTestability(
       issues.push({
         severity: 'high',
         kind: 'unlabelled-input',
+        audience: ['product', 'automation'],
         element: describe,
         problem: 'An input with no label cannot be filled reliably, nor read by anyone using AT.',
         suggestion:
@@ -593,6 +631,7 @@ export function auditTestability(
       issues.push({
         severity: 'high',
         kind: 'unaddressable',
+        audience: ['product', 'automation'],
         element: describe,
         problem: 'No accessible name, no id and no test id — only reachable by position.',
         suggestion: 'Give it an accessible name (aria-label, or real label text).',
@@ -607,6 +646,8 @@ export function auditTestability(
       issues.push({
         severity: 'high',
         kind: 'unreachable',
+        // A covered control is not a testing inconvenience. Nobody can click it.
+        audience: ['product', 'automation'],
         element: describe,
         problem: `Addressable but not actionable: ${el.blocker}. A click resolves to something else, so the test fails somewhere far from the cause.`,
         suggestion:
@@ -619,6 +660,9 @@ export function auditTestability(
       issues.push({
         severity: 'medium',
         kind: 'no-observable-state',
+        // Assistive technology cannot announce a state the page never exposes, so
+        // this is a product defect as much as an assertion problem.
+        audience: ['product', 'automation'],
         element: describe,
         problem:
           'This control changes state but exposes none: no aria-pressed, aria-expanded, aria-checked or equivalent. You can act on it and cannot assert the result.',
@@ -631,12 +675,48 @@ export function auditTestability(
   return issues;
 }
 
-export function formatScan(scan: PageScan): string {
+/**
+ * The scan as three reports, for three readers, in the order they are needed.
+ *
+ * **The map** answers "how large is the play area" and makes no judgements. **The
+ * product findings** are defects in the thing itself. **Automation readiness** is
+ * about driving the page, and comes last because it only matters once you know
+ * what is worth keeping.
+ *
+ * They used to be one list. A WCAG reflow failure appeared under the heading
+ * "Testability findings" between two selector complaints, and the first
+ * exploratory session run with this harness spent itself on selectors while the
+ * money on the page was wrong. The map is the denominator, the session is the
+ * numerator, automation prep is downstream of both.
+ */
+export function formatScan(
+  scan: PageScan,
+  options: { alsoProduct?: string[]; settled?: Settling } = {},
+): string {
   const { counts } = scan;
+  const forAudience = (who: Audience): TestabilityIssue[] =>
+    scan.testability.filter((issue) => issue.audience.includes(who));
+
   const lines = [
     `${scan.title}`,
     `${scan.url}`,
     '',
+    '--- THE MAP - how large is the play area ---',
+    '',
+    // How much the map is entitled to claim, before the counts it applies to. A
+    // reader who takes an incomplete inventory for a complete one designs against
+    // it — and the page where that happened had written `min=1 max=10` on a field
+    // the scan never saw.
+    ...(options.settled === 'timed-out'
+      ? [
+          'INVENTORY IS A FLOOR: the page was still active when this was taken, so',
+          'anything added later is missing. Treat every count below as "at least".',
+          '',
+        ]
+      : []),
+    ...(options.settled === 'settled'
+      ? ['Inventory taken after the page stopped adding to itself.', '']
+      : []),
     `Interactive: ${counts.interactive}  (${counts.inputs} input, ${counts.submits} submit, ${counts.stateful} expose state, ${counts.blocked} blocked)`,
     `Forms: ${counts.forms}   Tables: ${counts.tables}   Test ids: ${counts.withTestId}`,
     '',
@@ -644,7 +724,7 @@ export function formatScan(scan: PageScan): string {
 
   if (scan.frames.length > 0) {
     lines.push(
-      `Frames: ${scan.frames.length} NOT scanned — content inside is unexamined:`,
+      `Frames: ${scan.frames.length} NOT scanned - content inside is unexamined:`,
       ...scan.frames.map((src) => `  ${src}`),
       '',
     );
@@ -652,7 +732,7 @@ export function formatScan(scan: PageScan): string {
 
   if (scan.shadowHosts.length > 0) {
     lines.push(
-      `Shadow roots: ${scan.shadowHosts.length} open host(s), walked — their controls are included above:`,
+      `Shadow roots: ${scan.shadowHosts.length} open host(s), walked - their controls are included above:`,
       ...scan.shadowHosts.map((host) => `  <${host}>`),
       '  A hand-written CSS descendant chain will not cross these boundaries, though',
       "  Playwright's own selector engines do. A closed root cannot be detected at all.",
@@ -660,17 +740,9 @@ export function formatScan(scan: PageScan): string {
     );
   }
 
-  const ambiguous = scan.interactive.filter((el) => !el.unique).length;
-  const byStability = { stable: 0, 'text-dependent': 0, fragile: 0 };
-  for (const el of scan.interactive) byStability[el.stability] += 1;
-  lines.push(
-    `Addressability: ${byStability.stable} stable, ${byStability['text-dependent']} by name, ${byStability.fragile} positional, ${ambiguous} ambiguous`,
-    '',
-  );
-
   const inputs = scan.interactive.filter((el) => el.constraints !== null);
   if (inputs.length > 0) {
-    lines.push('Inputs — the surface a boundary probe works on:');
+    lines.push('Inputs - the surface a boundary probe works on:');
     for (const el of inputs.slice(0, 20)) {
       const c = el.constraints;
       if (c === null) continue;
@@ -693,12 +765,15 @@ export function formatScan(scan: PageScan): string {
         }`,
       );
     }
-    lines.push('');
+    // A declared min/max is a boundary specification the page handed over for
+    // free. Saying so is still map rather than judgement - what to do with it is
+    // the session's call, and for two sessions nobody made that call.
+    lines.push('  Each bound above is a boundary the page declared. Probe it.', '');
   }
 
   const stateful = scan.interactive.filter((el) => Object.keys(el.stateAttributes).length > 0);
   if (stateful.length > 0) {
-    lines.push('Observable state — what an interaction can be asserted against:');
+    lines.push('Observable state - what an interaction can be asserted against:');
     for (const el of stateful.slice(0, 20)) {
       const pairs = Object.entries(el.stateAttributes)
         .map(([key, value]) => `${key}=${value}`)
@@ -708,16 +783,63 @@ export function formatScan(scan: PageScan): string {
     lines.push('');
   }
 
-  if (scan.testability.length > 0) {
-    lines.push('Testability findings:');
-    for (const issue of scan.testability.slice(0, 20)) {
-      lines.push(`  [${issue.severity}] ${issue.kind}  ${issue.element}`, `      ${issue.problem}`);
+  for (const issue of forAudience('recon')) {
+    lines.push(`Blind spot: ${issue.element}`, `  ${issue.problem}`, '');
+  }
+
+  // Grouped by kind, not listed one per element. Re-running against a real site
+  // printed the same "unaddressable <a>" line twenty times and buried everything
+  // else — which defeats the point of giving a product owner their own section.
+  // One line per kind, a count, and a few examples is the same information a
+  // person can act on.
+  const render = (issues: TestabilityIssue[]): void => {
+    const byKind = new Map<string, TestabilityIssue[]>();
+    for (const issue of issues) {
+      const group = byKind.get(issue.kind) ?? [];
+      group.push(issue);
+      byKind.set(issue.kind, group);
     }
-    if (scan.testability.length > 20) {
-      lines.push(`  ... and ${scan.testability.length - 20} more`);
+    for (const [kind, group] of byKind) {
+      const first = group[0]!;
+      const count = group.length === 1 ? '' : ` x${group.length}`;
+      lines.push(`  [${first.severity}] ${kind}${count}`, `      ${first.problem}`);
+      const named = [...new Set(group.map((issue) => issue.element))].slice(0, 4);
+      lines.push(`      ${named.join('  ')}${group.length > named.length ? '  ...' : ''}`);
+      lines.push(`      fix: ${first.suggestion}`);
     }
+  };
+
+  // The deep passes hand their defects in here rather than printing their own
+  // section. One product section or none: a reader who has to assemble the
+  // defect list from two places is back where the split started.
+  const product = forAudience('product');
+  const alsoProduct = options.alsoProduct ?? [];
+  lines.push('--- PRODUCT FINDINGS - defects in the thing itself ---', '');
+  if (product.length > 0 || alsoProduct.length > 0) {
+    render(product);
+    lines.push(...alsoProduct);
   } else {
-    lines.push('Testability findings: none — every control is uniquely addressable.');
+    lines.push(
+      '  None from the static pass. This says nothing about behaviour: a scan',
+      "  looks, it does not interact. Judging the product is the session's job.",
+    );
+  }
+  lines.push('');
+
+  const automation = forAudience('automation');
+  const ambiguous = scan.interactive.filter((el) => !el.unique).length;
+  const byStability = { stable: 0, 'text-dependent': 0, fragile: 0 };
+  for (const el of scan.interactive) byStability[el.stability] += 1;
+  lines.push(
+    '--- AUTOMATION READINESS - can this be driven, and will it rot ---',
+    '',
+    `Addressability: ${byStability.stable} stable, ${byStability['text-dependent']} by name, ${byStability.fragile} positional, ${ambiguous} ambiguous`,
+    '',
+  );
+  if (automation.length > 0) {
+    render(automation);
+  } else {
+    lines.push('  None - every control is uniquely addressable.');
   }
 
   return lines.join('\n').trimEnd();
