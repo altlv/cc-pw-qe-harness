@@ -201,10 +201,15 @@ test.describe('naming a control that has no text of its own', () => {
     const scan = await scanPage(page);
 
     expect(scan.interactive[0]?.accessibleName).toBeNull();
+    const nameless = scan.testability.find((issue) => issue.kind === 'unaddressable');
     expect(
-      scan.testability.some((issue) => issue.kind === 'unaddressable'),
+      nameless,
       'a link a screen reader announces as bare "link" is both an accessibility defect and untargetable',
-    ).toBe(true);
+    ).toBeDefined();
+    expect(
+      nameless?.audience,
+      'both readers need it: accessibility and targetability are one defect seen from two sides',
+    ).toEqual(['product', 'automation']);
   });
 
   test('should name a submit input by its value', async ({ page }) => {

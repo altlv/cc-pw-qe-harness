@@ -18,6 +18,12 @@ const PROJECTS = ['--project=unit', '--project=integration', '--project=harness'
  * still passes, that rule is not actually tested and the confidence it gives is
  * false.
  *
+ * **A mutation that cannot fail is worse than no mutation**, because it reports as
+ * caught. Two in this list were like that until they were fixed: one removed an
+ * `await` whose work a later line still did, and one targeted a rule whose only
+ * test called the pure function directly rather than through the real path. When
+ * adding one, confirm it fails for the right reason before trusting the score.
+ *
  * Deliberately a hand-written list rather than a generic mutation engine. Nine
  * targeted mutations against the rules that matter say more than a thousand random
  * operator flips, and this runs in under a minute.
@@ -129,9 +135,16 @@ const MUTATIONS: Mutation[] = [
   },
   {
     file: 'src/tools/page-scanner.ts',
-    find: "severity: 'high',",
-    replace: "severity: 'medium',",
-    breaks: 'An untargetable element should be a high-severity finding',
+    // Anchored on the comment above the line, because the alternatives are all
+    // ambiguous: `severity: 'high'` matches five places, and `unaddressable` is
+    // raised from two branches of which only this one is reachable in practice —
+    // the other needs a fragile input that somehow has an accessible name. A
+    // mutation aimed at a branch nothing reaches survives forever and teaches
+    // nothing, which is how this one wasted two full runs.
+    find: "        // with no accessible name announces as nothing to a screen reader.\n        audience: ['product', 'automation'],",
+    replace:
+      "        // with no accessible name announces as nothing to a screen reader.\n        audience: ['product'],",
+    breaks: 'An untargetable element must reach the automator, not only the product owner',
   },
   {
     file: 'src/tools/page-scanner.ts',
@@ -189,8 +202,11 @@ const MUTATIONS: Mutation[] = [
   },
   {
     file: 'src/qe/exploration-policy.ts',
-    find: 'captureBodies: false,',
-    replace: 'captureBodies: true,',
+    // Both the test and prod policies set this, so the anchor carries the
+    // maxStates below it to pin the mutation to prod, the stricter of the two.
+    find: 'captureBodies: false,\n    denyLabels: [...DESTRUCTIVE_LABELS, ...OUTBOUND_LABELS],\n    maxStates: 15,',
+    replace:
+      'captureBodies: true,\n    denyLabels: [...DESTRUCTIVE_LABELS, ...OUTBOUND_LABELS],\n    maxStates: 15,',
     breaks: 'Payload bodies must not be written to disk outside local',
   },
   {
@@ -255,7 +271,7 @@ const MUTATIONS: Mutation[] = [
   },
   {
     file: 'src/tools/heal.ts',
-    find: '  if (!sameOrigin(url, baseline.url)) {',
+    find: '  if (matches === 0 && !sameOrigin(url, baseline.url)) {',
     replace: '  if (false) {',
     breaks: 'A baseline must never be matched against a different origin',
   },
@@ -267,8 +283,8 @@ const MUTATIONS: Mutation[] = [
   },
   {
     file: 'src/tools/heal.ts',
-    find: '  if (isStableId(fingerprint.id)) return `#${fingerprint.id}`;',
-    replace: '  if (fingerprint.id !== null) return `#${fingerprint.id}`;',
+    find: '  if (isStableId(fingerprint.id)) rungs.push(`#${fingerprint.id}`);',
+    replace: '  if (fingerprint.id !== null) rungs.push(`#${fingerprint.id}`);',
     breaks: 'A framework-generated id must not be proposed as the replacement selector',
   },
   {
@@ -419,6 +435,46 @@ const MUTATIONS: Mutation[] = [
   },
 ];
 
+/**
+ * Which mutations this run will attempt.
+ *
+ * `--changed` narrows to the mutations whose target file the working tree has
+ * touched. That is the difference between a thirty-second check while editing one
+ * module and a five-minute one, and the short loop is the one that gets run.
+ *
+ * The full list stays the default and stays the gate before a push. A scoped run
+ * tells you the rules you just touched are still held; it says nothing whatever
+ * about the rest, and the output below never lets it pretend otherwise. A partial
+ * score read as a full one is precisely the failure this tool exists to prevent.
+ */
+async function changedFiles(): Promise<string[]> {
+  const { stdout } = await run('git', ['status', '--porcelain'], { windowsHide: true });
+  return stdout
+    .split('\n')
+    .map((line) => line.slice(3).trim())
+    .filter((path) => path !== '')
+    .map((path) => path.replace(/\\/g, '/'));
+}
+
+const scoped = process.argv.includes('--changed');
+let selected = MUTATIONS;
+
+if (scoped) {
+  const touched = await changedFiles();
+  selected = MUTATIONS.filter((mutation) => touched.includes(mutation.file));
+  const files = [...new Set(selected.map((mutation) => mutation.file))];
+  console.log(
+    `Scoped to --changed: ${selected.length} of ${MUTATIONS.length} mutation(s), ` +
+      `across ${files.length} touched file(s).`,
+  );
+  for (const file of files) console.log(`  ${file}`);
+  if (selected.length === 0) {
+    console.log('\nNo mutation targets a file you have changed. Nothing to check here.');
+    process.exit(0);
+  }
+  console.log('');
+}
+
 const PLAYWRIGHT = resolve('node_modules/@playwright/test/cli.js');
 
 /**
@@ -430,11 +486,32 @@ const PLAYWRIGHT = resolve('node_modules/@playwright/test/cli.js');
  * reporting a perfect score having tested nothing. This exact thing happened when
  * the runner was invoked through the `npx` shim, which fails with EINVAL on Windows.
  */
-async function suitePasses(): Promise<boolean> {
+async function suitePasses(stopAtFirstFailure: boolean): Promise<boolean> {
   try {
-    await run(process.execPath, [PLAYWRIGHT, 'test', ...PROJECTS, '--reporter=dot'], {
-      windowsHide: true,
-    });
+    await run(
+      process.execPath,
+      [
+        PLAYWRIGHT,
+        'test',
+        ...PROJECTS,
+        '--reporter=dot',
+        // A mutation is caught the moment one test fails; the remaining several
+        // hundred tell us nothing. Measured on a real mutation: 10.1s to run the
+        // suite out, 3.3s to stop at the first failure. Across the whole list that
+        // is ten minutes down to three and a half.
+        //
+        // Not used for the baseline, where the question is the opposite one - is
+        // *everything* green - and stopping early would answer it dishonestly.
+        //
+        // Scoping each mutation to the project that can kill it was measured too,
+        // and dropped: 3297ms against 3154ms, a 4% gain for a per-mutation
+        // declaration that can be silently wrong. What is left is almost entirely
+        // fixed process startup, roughly 3s of Playwright and tsx boot paid once
+        // per mutation.
+        ...(stopAtFirstFailure ? ['--max-failures=1'] : []),
+      ],
+      { windowsHide: true },
+    );
     return true;
   } catch (error) {
     const e = error as { code?: number | string };
@@ -448,8 +525,26 @@ async function suitePasses(): Promise<boolean> {
   }
 }
 
+/**
+ * Every anchor must resolve to exactly one place, checked before anything runs.
+ *
+ * This used to print `SKIP` and carry on, which is a line nobody reads at the top
+ * of a five-minute run. Two rules had been silently unchecked for a while that way
+ * — `resolveLocator` was restructured and `proposeSelector` became a ladder, and
+ * both anchors quietly stopped matching. The score still said 100%, of a smaller
+ * denominator than anyone thought.
+ *
+ * An anchor matching *several* places is the same problem wearing a different hat:
+ * `String.replace` takes the first, so the mutation applies somewhere, just not
+ * necessarily where the rule lives. One anchor here matched five.
+ *
+ * Refusing is the only honest response. A mutation runner that quietly tests less
+ * than its list is the exact failure it exists to catch.
+ */
+const badAnchors: string[] = [];
+
 console.log('Baseline: running the unit + integration suites unmutated…');
-if (!(await suitePasses())) {
+if (!(await suitePasses(false))) {
   console.error('The suite fails before any mutation. Fix that first.');
   process.exit(2);
 }
@@ -458,17 +553,33 @@ console.log('Baseline green.\n');
 let caught = 0;
 const survivors: Mutation[] = [];
 
-for (const mutation of MUTATIONS) {
-  const original = await readFile(mutation.file, 'utf8');
-  if (!original.includes(mutation.find)) {
-    console.log(
-      `SKIP    ${mutation.breaks}\n        (anchor no longer present in ${mutation.file})`,
-    );
+for (const mutation of selected) {
+  const target = await readFile(mutation.file, 'utf8').catch(() => null);
+  if (target === null) {
+    badAnchors.push(`  ${mutation.file} does not exist — ${mutation.breaks}`);
     continue;
   }
+  const hits = target.split(mutation.find).length - 1;
+  if (hits !== 1) {
+    badAnchors.push(
+      `  ${hits === 0 ? 'no match' : `${hits} matches`} in ${mutation.file} — ${mutation.breaks}`,
+    );
+  }
+}
+if (badAnchors.length > 0) {
+  console.error(
+    `${badAnchors.length} mutation(s) have an anchor that does not resolve to exactly one place:\n` +
+      `${badAnchors.join('\n')}\n\n` +
+      `Refusing to run. A score computed over a shrunken list reads as a full one.`,
+  );
+  process.exit(2);
+}
+
+for (const mutation of selected) {
+  const original = await readFile(mutation.file, 'utf8');
 
   await writeFile(mutation.file, original.replace(mutation.find, mutation.replace), 'utf8');
-  const stillPasses = await suitePasses();
+  const stillPasses = await suitePasses(true);
   await writeFile(mutation.file, original, 'utf8');
 
   if (stillPasses) {
@@ -482,7 +593,17 @@ for (const mutation of MUTATIONS) {
 
 const total = caught + survivors.length;
 const score = total === 0 ? 0 : Math.round((caught / total) * 100);
-console.log(`\nMutation score: ${caught}/${total} (${score}%)`);
+if (scoped) {
+  // Deliberately not a percentage. A scoped run covers the rules you touched and
+  // nothing else, and a number that looks like a score would be read as one.
+  console.log(
+    `\nScoped result: ${caught}/${total} caught, across the files you changed.` +
+      `\nThis is NOT the mutation score — ${MUTATIONS.length - total} rule(s) went` +
+      ` unchecked. Run \`npm run mutate\` with no arguments before pushing.`,
+  );
+} else {
+  console.log(`\nMutation score: ${caught}/${total} (${score}%)`);
+}
 
 if (survivors.length > 0) {
   console.log('\nSurvivors — these rules are not actually tested:');

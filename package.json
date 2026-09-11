@@ -9,6 +9,9 @@
   },
   "scripts": {
     "test": "playwright test",
+    "test:watch": "playwright test --project=unit --ui",
+    "test:unit": "playwright test --project=unit",
+    "test:failed": "playwright test --last-failed",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
