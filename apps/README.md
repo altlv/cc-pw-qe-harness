@@ -56,6 +56,27 @@ The third column is why the list is worth keeping. Several of these close a gap
 `PLAN.md` already names, and picking by "what would this prove" beats picking by
 whichever is most convenient.
 
+### The scored benchmark — the one candidate that measures us back
+
+| Subject         | URL                                  | What it would prove                                                                                                                                                                                                                                                                                       |
+| --------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AcademyBugs** | <https://academybugs.com/find-bugs/> | **25 planted bugs across five named categories** — functional, visual, content, performance, crash — and it ships its own oracle. The counter overlay's `a.academy-tooltip-bug-link` elements carry found/unfound state in the DOM, per session, so a run's find rate is a **number** rather than a claim |
+
+Every other subject on this page tells us whether the harness _runs_. This one tells
+us whether it _finds anything_, against a denominator someone else chose.
+
+That is the instrument `PLAN.md` calls H1 — a measured failure rate instead of an
+opinion — and it was sitting on a page already being used for ad-hoc exploration.
+First measurement, 2026-09-11: **a person with a browser ~30, the harness's tools ~8**,
+and the harness scored zero in two of the five categories because it never interacts.
+
+Registering it needs a decision the others do not. It is somebody's teaching product,
+so treat it as **prod-tier politeness on a test-tier subject**: read, click, and probe
+inputs, but no account creation, no purchase, and no hammering. The counter is
+per-session state, which means a registered suite would have to re-find every bug on
+every run — that is the point, and it is also why it needs its own charter rather than
+a spec per bug.
+
 ### Test-environment subjects — practice apps, made to be written to
 
 | Subject                 | URL                                                  | What it would prove                                                                                                                                                                                      |
