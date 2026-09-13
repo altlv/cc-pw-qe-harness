@@ -6,6 +6,7 @@ import {
   commandsNamedIn,
   obligationsFor,
   pathsNamedIn,
+  planFreshness,
   undocumentedCommands,
 } from '../../src/qe/housekeeping.js';
 
@@ -86,6 +87,63 @@ test.describe('a skill nobody can find', () => {
       uncataloguedSkills(['oracle-check'], 'see [`oracle-check`](oracle-check/SKILL.md)'),
       'a linked entry counts as listed; firing here would make the gate noise',
     ).toEqual([]);
+  });
+});
+
+test.describe('whether the plan is current', () => {
+  const stamp = (over: Partial<Parameters<typeof planFreshness>[0]>) =>
+    planFreshness({
+      recorded: 'aaaaaaa',
+      head: 'bbbbbbb',
+      parent: 'aaaaaaa',
+      planChangedInHead: true,
+      ...over,
+    });
+
+  test('should accept a plan updated against HEAD and not yet committed', () => {
+    expect(
+      stamp({ recorded: 'bbbbbbb', planChangedInHead: false }).fresh,
+      'this is the state just before a commit, and refusing it would block every commit',
+    ).toBe(true);
+  });
+
+  test('should accept a plan updated in the latest commit and stamped with its parent', () => {
+    // A file cannot contain the hash of the commit that includes it. The first
+    // version of this rule refused exactly this state, on the plan committed one
+    // commit earlier, and so demanded a hash bump before every commit.
+    expect(
+      stamp({}).fresh,
+      'a plan committed a moment ago is current; failing here trains people to bump the hash and nothing else',
+    ).toBe(true);
+  });
+
+  test('should refuse a plan the latest commit left untouched', () => {
+    // The drift worth refusing: code moved on in a commit that never updated the plan.
+    const result = stamp({ planChangedInHead: false });
+    expect(result.fresh, 'a code-only commit after a plan commit leaves the plan behind').toBe(
+      false,
+    );
+    expect(result.reason, 'the refusal must say which head to name').toContain('bbbbbbb');
+  });
+
+  test('should refuse a plan stamped with an older commit even if it was touched', () => {
+    expect(
+      stamp({ recorded: 'ccccccc' }).fresh,
+      'editing the plan without re-checking it against the current tree is not freshness',
+    ).toBe(false);
+  });
+
+  test('should refuse a plan that names no head at all', () => {
+    expect(stamp({ recorded: undefined }).fresh, 'a plan with no stamp cannot be checked').toBe(
+      false,
+    );
+  });
+
+  test('should treat short hashes of different lengths as the same commit', () => {
+    expect(
+      stamp({ recorded: 'bbbbbbbbbb', planChangedInHead: false }).fresh,
+      'git abbreviates to different lengths; a longer form of HEAD is still HEAD',
+    ).toBe(true);
   });
 });
 

@@ -69,6 +69,12 @@ Curated, not appended. Delete anything that stops being true.
   and delete anything no longer true rather than appending a correction beside it. The
   failure to avoid is not a patch — it is a stale or misleading line surviving.
   `HANDOFF.md` is curated the same way, with anything that stops being true deleted.
+- **Never describe the working tree in a file that will be committed.** "Uncommitted on
+  top: …" was written into `PLAN.md` and became false the moment the commit landed. A
+  committed file describes what the commit contains. The same logic bounds the plan's
+  head stamp: a file cannot name the hash of the commit that includes it, so it names
+  the parent, and `npm run precommit` accepts that only when the latest commit
+  actually updated the plan.
 - **Uncommitted work is invisible to a `git diff` self-check.** Before overwriting a
   file, run `git status` on it: if it carries uncommitted changes, whatever you are
   about to destroy was never in HEAD, so the diff afterwards cannot show it to you.

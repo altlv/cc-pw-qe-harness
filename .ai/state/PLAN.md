@@ -10,22 +10,23 @@ Durable working agreements live in `HANDOFF.md`. Facts about an app under test l
 that app's `README.md`. Why a line of code exists lives in a comment next to it.
 Attribution lives in `docs/sources.md`. None of that belongs here.
 
-**Verified:** 2026-09-13 — every number below re-run before this commit.
-
 ## Where we are
 
-Head is `a1b43d7`: roles drive a real browser through Playwright MCP, bounded by the
-exploration policy at three layers; the toolbox reaches every role; the session
-briefing is a tested module rather than inline prompt text; `npm run precommit` guards
-documentation drift before each commit. Uncommitted on top: this plan's queue additions
-from reviewing skills.sh.
+Head is `7c04a40` — the commit this file was last checked against. A file cannot name
+the commit that contains it, so `npm run precommit` accepts HEAD itself, or HEAD's
+parent when the latest commit updated this file.
+
+Roles drive a real browser through Playwright MCP, bounded by the exploration policy at
+three layers; the toolbox reaches every role; the session briefing is a tested module
+rather than inline prompt text; `npm run precommit` guards documentation drift before
+each commit.
 
 ## Proven — direct evidence, re-run before this commit
 
-- `npm test` **414 passed** — unit 314, harness 63, integration 30, todo-fixture 7 ·
+- `npm test` **420 passed** — unit 320, harness 63, integration 30, todo-fixture 7 ·
   `npm run test:external` **22**
 - `npm run gate` **PASS** · `npm run assert-quality` **34 files, 0 findings**
-- `npm run mutate` **79/79**, one mutation per enforced rule, no survivors
+- `npm run mutate` **80/80**, one mutation per enforced rule, no survivors
 - `npm run check` clean · `npm run precommit` clean
 - **A role runs.** `test-planner` executed against the live API on 2026-09-13: 1 turn,
   $0.1677, 6s, returned what it was asked for

@@ -124,6 +124,54 @@ export const CONSEQUENCES: Consequence[] = [
   },
 ];
 
+export interface PlanStamp {
+  /** The hash `PLAN.md` names as its head, if it names one. */
+  recorded: string | undefined;
+  head: string;
+  /** HEAD's parent; absent on a repository's first commit. */
+  parent: string | undefined;
+  planChangedInHead: boolean;
+}
+
+/**
+ * Whether `PLAN.md` was checked against the tree being committed.
+ *
+ * **A file cannot contain the hash of the commit that includes it.** The first version
+ * of this rule demanded the stamp equal HEAD, so it failed on every plan that had just
+ * been updated and committed, and forced a hash bump before every later commit whether
+ * anything had changed or not. A check that fires every time gets satisfied by editing
+ * the hash, not by re-verifying the plan.
+ *
+ * So there are two fresh states: updated against HEAD and not yet committed, or updated
+ * in HEAD itself and stamped with its parent. A code-only commit after a plan commit is
+ * neither, and that is the drift worth refusing.
+ */
+export function planFreshness(stamp: PlanStamp): { fresh: boolean; reason: string } {
+  const { recorded, head, parent, planChangedInHead } = stamp;
+  if (recorded === undefined) {
+    return { fresh: false, reason: 'PLAN.md names no head — expected: Head is `<sha>`' };
+  }
+  if (sameCommit(recorded, head)) {
+    return { fresh: true, reason: `updated against HEAD ${head}` };
+  }
+  const sameAsParent = parent !== undefined && sameCommit(recorded, parent);
+  if (sameAsParent && planChangedInHead) {
+    return { fresh: true, reason: `updated in HEAD ${head}, stamped with its parent` };
+  }
+  return {
+    fresh: false,
+    reason:
+      `it names ${recorded}, HEAD is ${head}, and the latest commit did not update it. ` +
+      `Re-run the commands, update what changed, delete what is no longer true, and ` +
+      `name ${head} as the head.`,
+  };
+}
+
+/** Short hashes of different lengths name the same commit when one prefixes the other. */
+function sameCommit(a: string, b: string): boolean {
+  return a.startsWith(b) || b.startsWith(a);
+}
+
 /** Items that apply to any change at all, however small. */
 export const ALWAYS = [
   'README — does the Status table still describe what is true, in both columns?',

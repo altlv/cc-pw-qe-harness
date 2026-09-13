@@ -6,6 +6,7 @@ import {
   commandsNamedIn,
   obligationsFor,
   pathsNamedIn,
+  planFreshness,
   uncataloguedSkills,
   undocumentedCommands,
 } from '../qe/housekeeping.js';
@@ -99,22 +100,27 @@ for (const file of documentsToCheck()) {
   }
 }
 
-const head = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
-  encoding: 'utf8',
-  windowsHide: true,
-}).trim();
+function git(...argv: string[]): string {
+  return execFileSync('git', argv, { encoding: 'utf8', windowsHide: true }).trim();
+}
 
-const plan = readFileSync('.ai/state/PLAN.md', 'utf8');
-const recorded = /Head is `([0-9a-f]+)`/.exec(plan)?.[1];
+const head = git('rev-parse', '--short', 'HEAD');
+let parent: string | undefined;
+let planChangedInHead = false;
+try {
+  parent = git('rev-parse', '--short', 'HEAD~1');
+  planChangedInHead = git('diff', '--name-only', 'HEAD~1', 'HEAD')
+    .split('\n')
+    .some((file) => file.trim() === '.ai/state/PLAN.md');
+} catch {
+  // A repository's first commit has no parent; only the HEAD form can be fresh.
+  parent = undefined;
+}
 
-if (recorded === undefined) {
-  fail('PLAN.md does not record the commit it was verified against', 'expected: Head is `<sha>`');
-} else if (!head.startsWith(recorded) && !recorded.startsWith(head)) {
-  fail(
-    'PLAN.md was last verified against a different commit',
-    `it says ${recorded}, HEAD is ${head}. Re-run the commands, update what changed, ` +
-      'and delete anything no longer true.',
-  );
+const recorded = /Head is `([0-9a-f]+)`/.exec(readFileSync('.ai/state/PLAN.md', 'utf8'))?.[1];
+const planStatus = planFreshness({ recorded, head, parent, planChangedInHead });
+if (!planStatus.fresh) {
+  fail('PLAN.md is not current', planStatus.reason);
 }
 
 /**
@@ -199,7 +205,7 @@ if (FAILURES.length > 0) {
   console.log('  ✓ every command named in a tracked .md exists');
   console.log('  ✓ every repo path named in a tracked .md exists');
   console.log('  ✓ every command and every skill is documented somewhere findable');
-  console.log(`  ✓ PLAN.md was verified against ${head}\n`);
+  console.log(`  ✓ PLAN.md is current — ${planStatus.reason}\n`);
 }
 
 console.log('Not checkable — read these yourself:\n');

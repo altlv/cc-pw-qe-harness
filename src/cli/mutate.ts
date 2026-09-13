@@ -240,6 +240,14 @@ const MUTATIONS: Mutation[] = [
     breaks: 'A skill the catalogue never lists must be reported',
   },
   {
+    // Without the second condition, a code-only commit after a plan commit reads as
+    // current, and the plan can lag the code indefinitely.
+    file: 'src/qe/housekeeping.ts',
+    find: '  if (sameAsParent && planChangedInHead) {',
+    replace: '  if (sameAsParent) {',
+    breaks: 'A plan the latest commit did not update must not count as current',
+  },
+  {
     file: 'src/quality/assertions.ts',
     find: 'if (assertions > 1 && explained === 0) {',
     replace: 'if (false) {',
