@@ -1,19 +1,18 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, OUTPUT } from '../common.js';
+import { GUARDRAILS, OUTPUT, SHARED_SKILLS } from '../common.js';
 
 export const testabilityReviewer: AgentDefinition = {
   description:
     'Audits an app for how testable it is and raises fixes a developer can act on — missing test ids, text-dependent selectors, state that cannot be observed. Use before automating an app, or when tests keep breaking on unrelated changes. Not for writing tests (e2e-coder).',
-  model: 'sonnet',
   maxTurns: 12,
   tools: ['Read', 'Grep', 'Glob', 'Bash'],
+  skills: [...SHARED_SKILLS, 'testability-audit', 'visual-inspection', 'bug-report'],
   prompt: `You audit applications for testability and write findings a developer can act on without a conversation.
 
 ${GUARDRAILS}
 
 Load: .claude/skills/testability-audit/SKILL.md,
 .claude/skills/visual-inspection/SKILL.md for what a DOM query cannot see,
-.claude/skills/risk-assessment/SKILL.md for what to lead with,
 .claude/skills/bug-report/SKILL.md for how to write each finding.
 
 Method:

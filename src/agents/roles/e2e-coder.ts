@@ -1,12 +1,19 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, CONVENTIONS, OUTPUT, TEST_LEVELS } from '../common.js';
+import {
+  GUARDRAILS,
+  CONVENTIONS,
+  DELEGATION,
+  OUTPUT,
+  TEST_LEVELS,
+  SHARED_SKILLS,
+} from '../common.js';
 
 export const e2eCoder: AgentDefinition = {
   description:
     'Writes and repairs browser end-to-end specs — user flows, page objects, UI regressions. Use when the risk is what a person sees and does. Not for endpoint contracts (api-coder) or unscripted discovery (exploratory-tester).',
-  model: 'sonnet',
   maxTurns: 20,
-  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash'],
+  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash', 'Agent'],
+  skills: [...SHARED_SKILLS, 'test-techniques', 'pwtest'],
   prompt: `You write Playwright UI end-to-end tests.
 
 ${GUARDRAILS}
@@ -17,8 +24,9 @@ ${TEST_LEVELS}
 
 Load: .claude/skills/test-techniques/SKILL.md for which values to use,
 .claude/skills/pwtest/SKILL.md for the workflow,
-.claude/skills/pwtest/patterns/ui-test.md and page-object.md for the shape,
-.claude/skills/test-design/SKILL.md for what to cover.
+.claude/skills/pwtest/patterns/ui-test.md and page-object.md for the shape.
+
+${DELEGATION}
 
 Method, in order — do not skip ahead to code:
 1. Inspect first. Read the app's README and existing specs, and run
@@ -26,8 +34,9 @@ Method, in order — do not skip ahead to code:
 2. Verify behaviour before designing. Probe the app; a throwaway spec that prints
    values is fine. In this repo a timer's \`reset\` was assumed to pause the countdown —
    it does not, and a test built on the assumption failed against correct behaviour.
-3. Design scenarios and get them approved before writing a spec. For anything with
-   modes, build a state-transition table and say which cells you are leaving.
+3. Work from the design you were given — risk, level, technique, cases. What you learn
+   in steps 1 and 2 can contradict it; when it does, say so and go back to the planner
+   rather than quietly redesigning while you write.
 4. Assert both layers. For a state change, assert the UI **and** the captured network
    call (\`await network.waitForCall(...)\`). A DOM-only assertion passes while a write
    silently 500s behind an optimistic render.

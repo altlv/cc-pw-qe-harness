@@ -1,6 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { Options } from '@anthropic-ai/claude-agent-sdk';
 import { Budget } from './budget.js';
+import { resolveModel } from './models.js';
 
 export interface AgentRunResult {
   /** Final assistant text. Empty when the run was cut short before answering. */
@@ -20,6 +21,12 @@ export interface AgentRunOptions {
   mcpServers?: Options['mcpServers'];
   /** Role definitions the run may delegate to. See src/agents/roles.ts. */
   agents?: Options['agents'];
+  /**
+   * Model id. Defaults to whatever HARNESS_MODEL resolves to. A delegated subagent
+   * that names no model of its own inherits this one, which is what keeps a planner
+   * on the same model as the coder that called it.
+   */
+  model?: string;
   cwd?: string;
 }
 
@@ -42,8 +49,12 @@ function isAuthFailure(error: unknown): boolean {
 export const AUTH_HINT =
   'Agent auth failed. Either sign in with `claude login`, or set ANTHROPIC_API_KEY in .env.';
 
+/**
+ * The default model id for callers that do not choose one. Tier and budgets live in
+ * `models.ts`; this is only the id.
+ */
 export function model(): string {
-  return process.env.HARNESS_MODEL?.trim() || 'claude-sonnet-5';
+  return resolveModel().id;
 }
 
 /**
@@ -67,7 +78,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
     const response = query({
       prompt: options.prompt,
       options: {
-        model: model(),
+        model: options.model ?? model(),
         systemPrompt: options.systemPrompt,
         maxTurns: budget.limits.maxTurns,
         allowedTools: options.allowedTools,

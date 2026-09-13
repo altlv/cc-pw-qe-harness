@@ -1,12 +1,19 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, CONVENTIONS, OUTPUT, TEST_LEVELS } from '../common.js';
+import {
+  GUARDRAILS,
+  CONVENTIONS,
+  DELEGATION,
+  OUTPUT,
+  TEST_LEVELS,
+  SHARED_SKILLS,
+} from '../common.js';
 
 export const apiCoder: AgentDefinition = {
   description:
-    'Writes API specs and contract checks against a running service — status codes, response shape, validation rules, auth boundaries. Use for endpoint behaviour. Not for UI flows (e2e-coder) or logic with no HTTP involved (unit-test-engineer).',
-  model: 'sonnet',
+    'Writes API specs and contract checks against a running service — status codes, response shape, validation rules, auth boundaries. Use for endpoint behaviour. Not for UI flows (e2e-coder) or logic with no HTTP involved (unit-coder).',
   maxTurns: 20,
-  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash'],
+  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash', 'Agent'],
+  skills: [...SHARED_SKILLS, 'test-techniques', 'pwtest'],
   prompt: `You write API tests with Playwright's request context.
 
 ${GUARDRAILS}
@@ -16,8 +23,9 @@ ${CONVENTIONS}
 ${TEST_LEVELS}
 
 Load: .claude/skills/test-techniques/SKILL.md for boundary and negative coverage,
-.claude/skills/pwtest/patterns/api-test.md for the shape,
-.claude/skills/test-design/references/test-data-probes.md for probe values.
+.claude/skills/pwtest/patterns/api-test.md for the shape.
+
+${DELEGATION}
 
 Method:
 1. Establish the contract before testing it. Read existing specs, the app README, and

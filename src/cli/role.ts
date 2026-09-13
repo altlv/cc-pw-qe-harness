@@ -2,7 +2,8 @@ import '../env.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { AgentAuthError, runAgent } from '../agents/client.js';
-import { Budget } from '../agents/budget.js';
+import { Budget, DEFAULT_LIMITS } from '../agents/budget.js';
+import { budgetForTier, resolveModel } from '../agents/models.js';
 import { roles } from '../agents/roles.js';
 
 /**
@@ -30,16 +31,29 @@ if (role === undefined) {
   process.exit(2);
 }
 
-// The role declares a sensible default; an operator setting AGENT_MAX_TURNS is
-// asking deliberately, so that wins. The chosen limit is printed either way, because
-// a budget that silently differs from the one you set is worse than no budget.
+// A role declares how many turns its work takes, written for sonnet; the tier scales
+// that and the spend. An operator setting AGENT_MAX_TURNS or AGENT_MAX_USD is asking
+// deliberately and still wins — but `.env.example` no longer ships either, because a
+// copied example is not a deliberate ask, and the one it shipped cut every role to 12.
+const chosen = resolveModel();
+if (chosen.warning !== null) console.error(`WARNING: ${chosen.warning}`);
+
+// Optional on the SDK type; tests/unit/roles.test.ts requires every role here to
+// set it, so the fallback is for the type checker rather than for a real role.
+const declaredTurns = role.maxTurns ?? DEFAULT_LIMITS.maxTurns;
+const scaled = budgetForTier(chosen.tier, declaredTurns, DEFAULT_LIMITS.maxUsd);
 const envTurns = process.env.AGENT_MAX_TURNS?.trim();
-const budget = Budget.fromEnv(
-  envTurns === undefined || envTurns === '' ? { maxTurns: role.maxTurns } : {},
-);
+const envUsd = process.env.AGENT_MAX_USD?.trim();
+const budget = Budget.fromEnv({
+  ...(envTurns === undefined || envTurns === '' ? { maxTurns: scaled.maxTurns } : {}),
+  ...(envUsd === undefined || envUsd === '' ? { maxUsd: scaled.maxUsd } : {}),
+});
 console.error(
-  `Running ${name} — max ${budget.limits.maxTurns} turns, ` +
-    `$${budget.limits.maxUsd.toFixed(2)}, ${budget.limits.timeoutMs / 1000}s`,
+  `Running ${name} on ${chosen.id} (${chosen.tier}) — max ${budget.limits.maxTurns} turns, ` +
+    `$${budget.limits.maxUsd.toFixed(2)}, ${budget.limits.timeoutMs / 1000}s` +
+    (budget.limits.maxTurns === scaled.maxTurns
+      ? ` (role asks ${declaredTurns} × ${chosen.tier})`
+      : ` (AGENT_MAX_TURNS overrides the role's ${declaredTurns})`),
 );
 
 let result;
@@ -48,6 +62,13 @@ try {
     prompt: task,
     systemPrompt: role.prompt,
     allowedTools: role.tools,
+    // Every role, so a coder handed no design can call test-planner. Only roles that
+    // hold the `Agent` tool can reach these, which the coding family does and the
+    // testing family does not — enforced in tests/unit/roles.test.ts. `runAgent` has
+    // taken an `agents` option since it was written and nothing ever passed one, so
+    // delegation was wired and dead.
+    agents: roles,
+    model: chosen.id,
     budget,
     cwd: process.cwd(),
   });

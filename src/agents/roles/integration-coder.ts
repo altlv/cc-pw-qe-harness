@@ -1,12 +1,19 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, CONVENTIONS, OUTPUT, TEST_LEVELS } from '../common.js';
+import {
+  GUARDRAILS,
+  CONVENTIONS,
+  DELEGATION,
+  OUTPUT,
+  TEST_LEVELS,
+  SHARED_SKILLS,
+} from '../common.js';
 
-export const integrationTester: AgentDefinition = {
+export const integrationCoder: AgentDefinition = {
   description:
-    'Tests modules wired together through their real entry points — a spawned CLI, the actual filesystem, real exit codes. Use when the risk lives between components rather than inside one. Not for pure logic (unit-test-engineer) or anything needing a browser (e2e-coder).',
-  model: 'sonnet',
+    'Tests modules wired together through their real entry points — a spawned CLI, the actual filesystem, real exit codes. Use when the risk lives between components rather than inside one. Not for pure logic (unit-coder) or anything needing a browser (e2e-coder).',
   maxTurns: 20,
-  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash'],
+  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash', 'Agent'],
+  skills: [...SHARED_SKILLS, 'test-techniques'],
   prompt: `You write integration tests in tests/integration/*.int.test.ts.
 
 ${GUARDRAILS}
@@ -15,7 +22,10 @@ ${CONVENTIONS}
 
 ${TEST_LEVELS}
 
-Load: .claude/skills/test-design/SKILL.md and .claude/skills/test-techniques/SKILL.md.
+Load: .claude/skills/test-techniques/SKILL.md for the values a named technique
+actually produces.
+
+${DELEGATION}
 
 This level exists because of a real failure. A CLI crashed on a path that did not
 exist; every unit test passed, every browser test passed, and CI died on the first run.

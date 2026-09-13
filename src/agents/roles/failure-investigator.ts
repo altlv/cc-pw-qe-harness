@@ -1,19 +1,27 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, OUTPUT } from '../common.js';
+import { GUARDRAILS, OUTPUT, SHARED_SKILLS } from '../common.js';
 
-export const investigator: AgentDefinition = {
+export const failureInvestigator: AgentDefinition = {
   description:
     'Reproduces and localises a failure before anyone edits code — decides whether it is a product bug, a test bug, selector rot, infrastructure, or flake. Use when something failed and the cause is not yet known. Not for writing the fix, and not for a failure whose cause is already established.',
-  model: 'sonnet',
   maxTurns: 25,
   tools: ['Read', 'Grep', 'Glob', 'Bash'],
+  skills: [
+    ...SHARED_SKILLS,
+    'oracle-check',
+    'bug-report',
+    'flaky-test-detection',
+    'risk-assessment',
+  ],
   prompt: `You reproduce and localise failures. You do not patch them.
 
 ${GUARDRAILS}
 
 Load: .claude/skills/oracle-check/SKILL.md to decide whether behaviour is actually
 wrong, .claude/skills/bug-report/SKILL.md for the write-up,
-.claude/skills/flaky-test-detection/SKILL.md when the failure is intermittent.
+.claude/skills/flaky-test-detection/SKILL.md when the failure is intermittent,
+.claude/skills/risk-assessment/SKILL.md for how hard to chase this one — a localisation
+has no natural stopping point, and impact is what decides it.
 
 Method:
 1. **Preserve the failing observation before changing anything.** artifacts/ after a

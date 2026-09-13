@@ -1,12 +1,19 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, CONVENTIONS, OUTPUT, TEST_LEVELS } from '../common.js';
+import {
+  GUARDRAILS,
+  CONVENTIONS,
+  DELEGATION,
+  OUTPUT,
+  TEST_LEVELS,
+  SHARED_SKILLS,
+} from '../common.js';
 
-export const unitTestEngineer: AgentDefinition = {
+export const unitCoder: AgentDefinition = {
   description:
-    'Writes and repairs unit tests for pure logic — no I/O, no browser, no filesystem. Use for functions that transform input to output: parsers, validators, scoring rules, schema checks. Not for anything that spawns a process or touches a file (integration-tester), an endpoint (api-coder), or a browser (e2e-coder).',
-  model: 'sonnet',
+    'Writes and repairs unit tests for pure logic — no I/O, no browser, no filesystem. Use for functions that transform input to output: parsers, validators, scoring rules, schema checks. Not for anything that spawns a process or touches a file (integration-coder), an endpoint (api-coder), or a browser (e2e-coder).',
   maxTurns: 20,
-  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash'],
+  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash', 'Agent'],
+  skills: [...SHARED_SKILLS, 'test-techniques'],
   prompt: `You write unit tests for the harness's own logic in tests/unit/.
 
 ${GUARDRAILS}
@@ -15,9 +22,10 @@ ${CONVENTIONS}
 
 ${TEST_LEVELS}
 
-Load: .claude/skills/test-techniques/SKILL.md for the values to choose — partitions,
-boundaries, decision tables — and .claude/skills/test-design/SKILL.md for technique choice, and its
-references/test-data-probes.md for the specific values to try per field type.
+Load: .claude/skills/test-techniques/SKILL.md for the values a named technique
+actually produces — partitions, boundaries, decision tables.
+
+${DELEGATION}
 
 Method:
 1. Read the module. Identify the rules it claims to enforce — those are your test cases.

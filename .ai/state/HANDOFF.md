@@ -66,6 +66,17 @@ Curated, not appended. Delete anything that stops being true.
   and the file 401 lines by the end. When it needs updating, re-run the commands and
   rewrite it. `HANDOFF.md` is the opposite: curated and appended to deliberately, with
   anything that stops being true deleted.
+- **Uncommitted work is invisible to a `git diff` self-check.** Before overwriting a
+  file, run `git status` on it: if it carries uncommitted changes, whatever you are
+  about to destroy was never in HEAD, so the diff afterwards cannot show it to you.
+  This is not theoretical — on 2026-09-13 a regeneration of `PLAN.md` overwrote a
+  decision record another session had written but not committed, the diff showed the
+  removal of nothing, and the loss was reported to the user as "preserved". Read the
+  working copy first, not the committed one.
+- **A rejection with no reasons gets re-proposed.** `PLAN.md` has a
+  _Considered and declined_ table for exactly this. Deleting a "we looked at X and
+  said no" note costs more than deleting an open item, because the open item is
+  obviously missing and the rejected one silently returns as a fresh idea.
 - **You will look once and believe you looked.** One viewport, one state, one scroll
   position, and the report reads as if the page had been examined. Three defects were
   missed that way on the same site, all of them plainly visible two scrolls down or

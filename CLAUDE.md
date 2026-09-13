@@ -8,15 +8,15 @@ test, and the skills in `.claude/skills/` before deciding _what_ to test.
 A harness pairing Claude (via `@anthropic-ai/claude-agent-sdk`) with Playwright for
 QA/QE work.
 
-| Capability                                            | Status                             | Entry point                 |
-| ----------------------------------------------------- | ---------------------------------- | --------------------------- |
-| Network capture                                       | built                              | `src/capture/network.ts`    |
-| Page scanner + testability audit                      | built                              | `src/tools/page-scanner.ts` |
-| Test quality gate                                     | built                              | `src/quality/assertions.ts` |
-| Release gate verdict                                  | built                              | `src/qe/gate.ts`            |
-| Failure triage agent                                  | built, unverified against live API | `src/agents/triage.ts`      |
-| Agent roles (e2e/api coder, exploratory, testability) | defined, not yet driven            | `src/agents/roles.ts`       |
-| Test generation, self-healing selectors               | planned                            | —                           |
+| Capability                                     | Status                             | Entry point                 |
+| ---------------------------------------------- | ---------------------------------- | --------------------------- |
+| Network capture                                | built                              | `src/capture/network.ts`    |
+| Page scanner + testability audit               | built                              | `src/tools/page-scanner.ts` |
+| Test quality gate                              | built                              | `src/quality/assertions.ts` |
+| Release gate verdict                           | built                              | `src/qe/gate.ts`            |
+| Failure triage agent                           | built, unverified against live API | `src/agents/triage.ts`      |
+| Agent roles — coding family and testing family | defined, not yet driven            | `src/agents/roles.ts`       |
+| Test generation, self-healing selectors        | planned                            | —                           |
 
 Do not add placeholder modules for the planned items. Build one end to end when it
 is wanted.

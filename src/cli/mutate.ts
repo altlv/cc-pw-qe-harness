@@ -97,23 +97,81 @@ const MUTATIONS: Mutation[] = [
     breaks: 'The gate must refuse test results older than the source',
   },
   {
-    file: 'src/agents/roles/integration-tester.ts',
-    find: 'Not for pure logic (unit-test-engineer) or anything needing a browser (e2e-coder).',
+    file: 'src/agents/roles/integration-coder.ts',
+    find: 'Not for pure logic (unit-coder) or anything needing a browser (e2e-coder).',
     replace: 'It is generally useful.',
     breaks: 'A role description must say when NOT to use it',
   },
   {
+    // Anchored on the `skills` array rather than the prose, because the array is what
+    // the SDK preloads and what the orphan check counts. testability-audit has exactly
+    // one declarer, so removing it here orphans the skill outright.
     file: 'src/agents/roles/testability-reviewer.ts',
-    find: 'Load: .claude/skills/testability-audit/SKILL.md,',
-    replace: 'Load: .claude/skills/does-not-exist/SKILL.md,',
-    breaks: 'A role must not point at a skill that does not exist',
+    find: "skills: [...SHARED_SKILLS, 'testability-audit', 'visual-inspection', 'bug-report'],",
+    replace: "skills: [...SHARED_SKILLS, 'visual-inspection', 'bug-report'],",
+    breaks: 'A skill that no role declares must be reported as orphaned',
   },
   {
-    file: 'src/agents/roles/investigator.ts',
-    find: "Not for writing the fix, and not for a failure whose cause is already established.',\n  model: 'sonnet',\n  maxTurns: 25,\n  tools: ['Read', 'Grep', 'Glob', 'Bash'],",
-    replace:
-      "Not for writing the fix, and not for a failure whose cause is already established.',\n  model: 'sonnet',\n  maxTurns: 25,\n  tools: ['Read', 'Grep', 'Glob', 'Bash', 'Edit'],",
-    breaks: 'An investigating role must not be able to edit product code',
+    file: 'src/agents/roles/failure-investigator.ts',
+    // maxTurns 25 is unique to this role, which is what keeps the anchor from
+    // matching one of the other seven `tools:` lines. The previous anchor spanned the
+    // description and a `model: 'sonnet'` line; deleting that line rotted it, and the
+    // anchor guard refused the whole run rather than quietly skipping the rule.
+    find: "  maxTurns: 25,\n  tools: ['Read', 'Grep', 'Glob', 'Bash'],",
+    replace: "  maxTurns: 25,\n  tools: ['Read', 'Grep', 'Glob', 'Bash', 'Edit'],",
+    breaks: 'A testing-family role must not be able to edit code',
+  },
+  {
+    // A role pairs with a skill twice: the `skills` array preloads it, the prose says
+    // when to reach for it. This strips the prose half while the array keeps claiming
+    // it, which is the drift that leaves a skill loaded and unexplained. Anchored in
+    // the shared OUTPUT block because honesty-check is cross-cutting — a per-role
+    // anchor would leave the other seven roles still explaining it.
+    file: 'src/agents/common.ts',
+    find: 'Before you write it, run .claude/skills/honesty-check/SKILL.md over your own work.',
+    replace: 'Before you write it, check your own work honestly.',
+    breaks: "A role's declared skills and the skills its prose names must agree",
+  },
+  {
+    // Judgement skills on a coder is how a coder ends up justifying the scope of the
+    // code it is already writing. api-coder is in the coding family, so declaring
+    // oracle-check must be refused.
+    file: 'src/agents/roles/api-coder.ts',
+    find: "skills: [...SHARED_SKILLS, 'test-techniques', 'pwtest'],",
+    replace: "skills: [...SHARED_SKILLS, 'test-techniques', 'pwtest', 'oracle-check'],",
+    breaks: 'A judgement skill must not reach the coding family',
+  },
+  {
+    // A weaker model needs more attempts, not fewer. Flipping the multiplier the
+    // wrong way is silent: the run just ends early and reports a partial result.
+    file: 'src/agents/models.ts',
+    find: '  haiku: { turns: 1.5, usd: 0.4 },',
+    replace: '  haiku: { turns: 0.5, usd: 0.4 },',
+    breaks: 'A weaker model must be given more turns than sonnet, not fewer',
+  },
+  {
+    // Passing an alias straight through would send "sonnet" to the API as a model id.
+    file: 'src/agents/models.ts',
+    find: '    if (value === tier) return { id: MODEL_IDS[tier], tier, warning: null };',
+    replace: '    if (value === tier) return { id: value, tier, warning: null };',
+    breaks: 'A tier alias must expand to a real model id',
+  },
+  {
+    // Silently defaulting an unknown model to sonnet budgets is how a run ends early
+    // for no visible reason.
+    file: 'src/agents/models.ts',
+    find: '    warning: `HARNESS_MODEL=',
+    replace: '    warning: null as unknown as string, unusedWarning: `HARNESS_MODEL=',
+    breaks: 'An unrecognised HARNESS_MODEL must warn rather than pass silently',
+  },
+  {
+    // The regression this exists for: loading `.env` relative to cwd reads a
+    // subject's environment into the harness process the moment a CLI is run from
+    // inside one. Silent — the values simply appear in process.env.
+    file: 'src/env.ts',
+    find: '  process.loadEnvFile(harnessEnvFile());',
+    replace: "  process.loadEnvFile('.env');",
+    breaks: "The harness must load its own .env, never the working directory's",
   },
   {
     file: 'src/quality/assertions.ts',

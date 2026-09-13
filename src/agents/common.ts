@@ -12,6 +12,17 @@
  */
 
 /**
+ * Loaded by every role, whatever its family. Cross-cutting: neither is tied to a test
+ * level or to a way of working, and both were orphaned — read by no role at all —
+ * until the pairing was checked rather than assumed.
+ *
+ * These go in each role's `skills` array. The prose in GUARDRAILS and OUTPUT says
+ * *when* to reach for them, which the array cannot express; the array is what
+ * `tests/unit/roles.test.ts` reads to prove nothing is orphaned.
+ */
+const SHARED_SKILLS = ['work-discipline', 'honesty-check'];
+
+/**
  * Prepended to every role. Ported from core/guardrails/ and core/HARNESS.md.
  */
 const GUARDRAILS = `
@@ -24,6 +35,12 @@ Working discipline:
 - Never open .env, credential stores, or browser auth state. Prefer checking that a variable exists over reading its value.
 - Destructive or irreversible actions (git reset/clean/force, deleting files, production writes) require explicit authorisation. Ask first.
 - Never widen a selector or delete an assertion to make a test pass. Fix the locator or report the defect.
+
+The bullets above are the summary. The full discipline is
+.claude/skills/work-discipline/SKILL.md — load it for the truth rules that classify
+every claim as direct, inferred or claimed, for the failure loop (three materially
+different attempts, then escalate with evidence), and for the scope guard. Its start
+and end gates belong to the session that invoked you, not to you.
 `.trim();
 
 const CONVENTIONS = `
@@ -48,12 +65,35 @@ reads it:
 - Close the frontmatter with \`---\`, then write the markdown body.
 - \`not_covered\` is required: state what you did not look at.
 
+Before you write it, run .claude/skills/honesty-check/SKILL.md over your own work. It is
+a self-audit against the ways this kind of work reliably goes wrong, and a report is
+exactly where those failures land. If it produces no findings you were not looking.
+
 Then verify it with \`npm run check-report -- <path>\` and fix anything it reports before
 you finish. The checker refuses a blocker resting on anything but direct evidence, and
 refuses a PASS built on claimed evidence.
 
 Every number and name you report must come from a command you actually ran. If you did
 not run it, say so in \`not_run\` rather than estimating.
+`.trim();
+
+/**
+ * Given to the coding family only, and only alongside the `Agent` tool.
+ *
+ * `test-design` used to sit in all four coder prompts, so every coder did its own
+ * thinking and then wrote the code it had just justified. Pulling design into its own
+ * role leaves a gap when a coder is handed nothing — this is how it fills that gap
+ * without widening back out.
+ */
+const DELEGATION = `
+If you were handed no test design — no risks, no levels, no cases — do not invent one
+while writing code. Call the planner: the \`Agent\` tool with subagent_type
+"test-planner" and the question you actually have. Design is a separate job so that it
+can be argued with before code makes it expensive.
+
+Delegate for a named gap, never for the whole task. One call, one question, then carry
+on with what comes back. If you are reaching for a second call on the same spec, the
+scope you were given is wrong — say so rather than delegating around it.
 `.trim();
 
 const TEST_LEVELS = `
@@ -68,4 +108,4 @@ when a test asks for \`page\`):
 Push each check as far down as it will go. Do not test the same thing at two levels.
 `.trim();
 
-export { GUARDRAILS, CONVENTIONS, OUTPUT, TEST_LEVELS };
+export { GUARDRAILS, CONVENTIONS, DELEGATION, OUTPUT, TEST_LEVELS, SHARED_SKILLS };

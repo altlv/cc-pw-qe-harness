@@ -122,3 +122,24 @@ cover. A skill that claims no blind spot has not been thought about.
 
 Agent roles are separate: [`src/agents/roles.ts`](../../src/agents/roles.ts) holds SDK
 `AgentDefinition`s, invoked programmatically rather than by a human typing a name.
+
+**Every skill here is declared by at least one role, and that is enforced** —
+`tests/unit/roles.test.ts` fails on any skill no role loads. A skill nothing reads is a
+skill that does not exist, which is what `work-discipline` and `honesty-check` were
+until it was checked.
+
+The pairing is written twice on purpose, and the two halves must agree:
+
+| Half                      | Job                                                            |
+| ------------------------- | -------------------------------------------------------------- |
+| the role's `skills` array | the SDK preloads these into the agent's context                |
+| the role's prompt prose   | says **when** to reach for each one, which an array cannot say |
+
+The two cross-cutting skills are declared through `SHARED_SKILLS` in
+`src/agents/common.ts`, so every role gets them: `work-discipline` alongside the
+guardrails, `honesty-check` in the output contract, at the moment each applies.
+
+Which skills a role may hold follows from its **family** — `coding` produces
+automation, `testing` produces judgement. `risk-assessment` and `oracle-check` reach
+the testing family only; a coder that ranks its own risk is justifying the scope of the
+code it is already writing.
