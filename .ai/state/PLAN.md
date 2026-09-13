@@ -14,10 +14,11 @@ Attribution lives in `docs/sources.md`. None of that belongs here.
 
 ## Where we are
 
-Head is `fc60917`. One uncommitted tree on top: roles drive a real browser through
-Playwright MCP, bounded by the exploration policy at three layers; the toolbox reaches
-every role; the session briefing is a tested module rather than inline prompt text;
-`npm run precommit` guards documentation drift before each commit.
+Head is `a1b43d7`: roles drive a real browser through Playwright MCP, bounded by the
+exploration policy at three layers; the toolbox reaches every role; the session
+briefing is a tested module rather than inline prompt text; `npm run precommit` guards
+documentation drift before each commit. Uncommitted on top: this plan's queue additions
+from reviewing skills.sh.
 
 ## Proven — direct evidence, re-run before this commit
 
@@ -135,13 +136,45 @@ dependency puts the most-wanted thing on top and quietly makes it unstartable.
 
 ### Independent — any time, in any order
 
-| #   | Item                                                                                                                                                                                                  | Why                                                                                                                                                                                                                                      |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 7   | **`storageState`**, captured once by a person and replayed by the harness                                                                                                                             | The authenticated half of every app is otherwise permanently dark. An agent never enters credentials, so this is the only route in: `playwright codegen --save-storage`                                                                  |
-| 8   | **A performance pass** — `performance.getEntriesByType`, roughly fifteen lines                                                                                                                        | One of the five benchmark categories has no capability at all. Fifteen hand-written lines found ~3x oversized images, 2.2MB of payload and a dead CDN                                                                                    |
-| 9   | **Multi-provider / multi-model, as a side quest.** A second seam — `askModel(model, prompt)`, single-shot, no tools, no budget loop — reaching OpenRouter (Gemini and the rest) beside the Claude SDK | The SDK is Anthropic-only by construction: it recognises `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, Bedrock and Vertex, and nothing else. So this is a **sibling of `runAgent`, never a replacement**. See below |
-| 10  | **`AgentDefinition.skills` under `settingSources: []`** — one live run that proves a declared skill is actually preloaded, or shows it is not                                                         | Every role now declares skills through the SDK field. If discovery needs setting sources we have added structure that does nothing, and the prose is carrying it alone                                                                   |
-| 11  | **Register `mcpa-bot` as a subject** at its external path, the way `juice-shop` is                                                                                                                    | Local Express app, own `.env`, nine `node:test` files and Playwright e2e **with page objects** — so it exercises item 15 with a real example, and its existing tests are ground truth to check an agent's findings against               |
+| #   | Item                                                                                                                                                                                                  | Why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 7   | **`storageState`**, captured once by a person and replayed by the harness                                                                                                                             | The authenticated half of every app is otherwise permanently dark. An agent never enters credentials, so this is the only route in: `playwright codegen --save-storage`                                                                                                                                                                                                                                                                                                                        |
+| 8   | **A performance pass** — `performance.getEntriesByType`, roughly fifteen lines                                                                                                                        | One of the five benchmark categories has no capability at all. Fifteen hand-written lines found ~3x oversized images, 2.2MB of payload and a dead CDN                                                                                                                                                                                                                                                                                                                                          |
+| 9   | **Multi-provider / multi-model, as a side quest.** A second seam — `askModel(model, prompt)`, single-shot, no tools, no budget loop — reaching OpenRouter (Gemini and the rest) beside the Claude SDK | The SDK is Anthropic-only by construction: it recognises `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, Bedrock and Vertex, and nothing else. So this is a **sibling of `runAgent`, never a replacement**. See below                                                                                                                                                                                                                                                       |
+| 10  | **`AgentDefinition.skills` under `settingSources: []`** — one live run that proves a declared skill is actually preloaded, or shows it is not                                                         | Every role now declares skills through the SDK field. If discovery needs setting sources we have added structure that does nothing, and the prose is carrying it alone                                                                                                                                                                                                                                                                                                                         |
+| 11  | **Register `mcpa-bot` as a subject** at its external path, the way `juice-shop` is                                                                                                                    | Local Express app, own `.env`, nine `node:test` files and Playwright e2e **with page objects** — so it exercises item 15 with a real example, and its existing tests are ground truth to check an agent's findings against                                                                                                                                                                                                                                                                     |
+| 24  | **Measured trial: `microsoft/playwright-cli` against Playwright MCP.** Same role, same task, same page; compare cost, turns, and exactly which policy bounds are lost                                 | Microsoft's own README positions the CLI as the alternative for coding agents — "token-efficient. Does not force page data into LLM" — which matches our measurement that the accessibility tree is the expensive way to look. The price: every bound here is built on MCP tool names, and a CLI runs through `Bash`, where neither the allowlist nor `canUseTool` can bind a subcommand. Split to be proven, not assumed: testing roles keep MCP, `e2e-coder` authors via the CLI. Apache-2.0 |
+| 25  | **Review the test skills on skills.sh as benchmarks** — read, never install, and compare against our own. Shortlist below                                                                             | Recreating what already exists well is waste; missing a technique someone else found is worse. Registry audits (Gen Agent Trust Hub, Socket, Snyk) are partial — many entries show Pending — and nothing states they cover prompt injection, the real risk in a skill. Check each licence before taking anything and credit it in `docs/sources.md`                                                                                                                                            |
+
+#### On item 25 — the shortlist
+
+From `skills.sh/?q=test` on 2026-09-13: the first 100 results, ranked by relevance,
+publisher and installs. The list is rendered client-side, so it was read in a browser.
+
+- **Web, E2E and browser** — against `pwtest` and `visual-inspection`: `anthropics/skills`
+  webapp-testing · `github/awesome-copilot` webapp-testing, playwright-generate-test,
+  scoutqa-test · `wshobson/agents` e2e-testing-patterns · `addyosmani/agent-skills`
+  browser-testing-with-devtools · `browserbase/skills` ui-test · `affaan-m/ecc`
+  e2e-testing · and the skill shipped with `microsoft/playwright-cli` (item 24)
+- **Strategy and process** — against `test-design`, `risk-assessment` and
+  `exploratory-session`: `anthropics/knowledge-work-plugins` testing-strategy ·
+  `obra/superpowers` and `addyosmani/agent-skills` test-driven-development ·
+  `riekelt/principal-engineer` testing-changes, writing-unit-tests ·
+  `github/awesome-copilot` breakdown-test, polyglot-test-agent · `api/git` vip-test-plan,
+  vip-test-executor
+- **Techniques** — against `test-techniques`: `trailofbits/skills` property-based-testing
+- **Failures and regressions** — against `flaky-test-detection` and triage:
+  `forcedotcom/sf-skills` dx-devops-test-failures-analyze · `affaan-m/ecc`
+  ai-regression-testing, relevant to the tier-3 evals nothing here has yet
+- **Areas `.claude/skills/README.md` lists as deliberately absent** — re-read before that
+  line is kept: accessibility — `wshobson/agents` screen-reader-testing; security —
+  `usestrix/strix` owasp-top-10-testing, web-app-penetration-testing,
+  api-security-testing. Review only: offensive testing is for a local subject such as
+  `juice-shop`, never a third-party target
+- **Vendor-bound** — ideas only, expect lock-in: `momentic-ai/skills` momentic-test ·
+  `alwaysmeticulous/skills` meticulous-test
+- **Out of scope** — language- or platform-specific (Go, Rust, Swift, Flutter, Dart, C#,
+  Kotlin, Apex, Terraform and others), marketing A/B tests, trading backtests
 
 #### On item 9 — the shape, so it is not rediscovered
 
