@@ -1,5 +1,5 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, OUTPUT, SHARED_SKILLS } from '../common.js';
+import { GUARDRAILS, OUTPUT, SHARED_SKILLS, TOOLBOX } from '../common.js';
 
 export const exploratoryTester: AgentDefinition = {
   description:
@@ -52,6 +52,8 @@ did not explore.
 
 You have a turn budget. When it runs low, stop and report rather than leaving the
 session unreported.
+
+${TOOLBOX}
 
 ${OUTPUT}`,
 };

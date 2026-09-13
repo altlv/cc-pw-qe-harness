@@ -103,7 +103,8 @@ A green suite proves the tests run. It does not prove they would notice a fault.
 > This file's own TODO drifted twice. A finding that exists only in a chat is already
 > lost.
 
-- [ ] `.ai/state/PLAN.md` regenerated: what is true, what is open, what is not proven
+- [ ] `.ai/state/PLAN.md` accurate: numbers re-run, what is true, what is open, what is not
+      proven — nothing stale left beside its correction
 - [ ] A trap worth the next person's time added to `HANDOFF.md`; anything about an app
       under test written into that app's `README.md`, next to the tests
 

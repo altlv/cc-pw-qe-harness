@@ -22,6 +22,13 @@ than padded in.
 | [`risk-assessment`](risk-assessment/SKILL.md)         | How much testing an area deserves, scored so the decision is defensible   | 1     |
 | [`test-design`](test-design/SKILL.md)                 | What to test and at which level — decomposition, techniques, traceability | 1     |
 | [`exploratory-session`](exploratory-session/SKILL.md) | Chartered discovery of what nobody specified                              | 1     |
+| [`test-techniques`](test-techniques/SKILL.md)         | Deriving the cases a technique actually produces, and its coverage bar    | 1     |
+
+## Looking at a running product
+
+| Skill                                             | Purpose                                                                   | Trust |
+| ------------------------------------------------- | ------------------------------------------------------------------------- | ----- |
+| [`visual-inspection`](visual-inspection/SKILL.md) | Method for looking: pre-flight, position x state sweep, forced conditions | 1     |
 
 ## Writing tests
 
@@ -45,6 +52,8 @@ Do not load the catalogue. Load one or two skills for the task in front of you.
 | Task                             | Load                                                                 |
 | -------------------------------- | -------------------------------------------------------------------- |
 | "what should I test"             | `risk-assessment` → `test-design`                                    |
+| "which values, which cases"      | `test-techniques`                                                    |
+| "look at this page"              | `visual-inspection`                                                  |
 | "write tests for this"           | `pwtest`                                                             |
 | "explore this feature"           | `exploratory-session` + `oracle-check`                               |
 | "is this a bug"                  | `oracle-check`                                                       |

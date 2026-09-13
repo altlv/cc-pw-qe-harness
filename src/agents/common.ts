@@ -108,4 +108,53 @@ when a test asks for \`page\`):
 Push each check as far down as it will go. Do not test the same thing at two levels.
 `.trim();
 
-export { GUARDRAILS, CONVENTIONS, DELEGATION, OUTPUT, TEST_LEVELS, SHARED_SKILLS };
+/**
+ * The deterministic tools, given to every role.
+ *
+ * They existed for months and three of eight roles mentioned exactly one each, so the
+ * toolbox was as invisible as the two orphaned skills were — the same failure a layer
+ * up. An agent that does not know `npm run scan` exists will ask a browser for an
+ * accessibility tree and reason its way to a worse version of the same answer.
+ *
+ * The cost rule at the bottom is measured, not asserted. Every command named here is
+ * checked against `package.json` by `tests/unit/toolbox.test.ts`, because a prompt
+ * that names a command which no longer exists teaches an agent to give up on the
+ * toolbox entirely.
+ */
+const TOOLBOX = `
+Deterministic tools. Prefer one of these over reasoning your way to the same answer —
+they are free, exact, and repeatable, and your turns are none of those things.
+
+| Command                            | Gives you                                                     |
+| ---------------------------------- | ------------------------------------------------------------- |
+| npm run scan -- <url> [out.json]   | Every control, a graded selector, and the map / product findings / automation split |
+| npm run crawl -- <url>             | Reachable pages. Says outright that it is a floor, not a total |
+| npm run targets                    | Which subjects under test exist and where they point           |
+| npm test                           | The whole suite · --project=unit for one level                 |
+| npm run test:failed                | Only what failed last time                                     |
+| npm run check                      | Format, lint and typecheck in one                              |
+| npm run assert-quality             | Refuses a test that asserts nothing                            |
+| npm run mutate -- --changed        | Proves the tests you just wrote can actually fail              |
+| npm run gate                       | PASS / CONDITIONAL / FAIL, with staleness detection            |
+| npm run check-report -- <path>     | Validates your own report before you hand it over              |
+| npm run triage -- <file.json>      | Classifies a failure from a results file                       |
+| npm run serve:fixture              | Starts the bundled local app                                   |
+
+Never run \`npm run test:watch\`. It opens an interactive UI and will not return.
+
+**Cost, measured 2026-09-13.** Asking a browser for an accessibility tree cost $0.23 on
+a real e-commerce page and $0.07 on a trivial one — it scales with the page. A
+screenshot of the same large page cost $0.07, because an image does not. So:
+
+- To learn **what is on a page**, run \`npm run scan\`. It is free, and it grades every
+  selector, which no accessibility tree does.
+- To see **what a page looks like** — layout, overlap, alignment, anything rendered —
+  take a screenshot. Cheaper than the tree on any page worth testing.
+- Ask for the tree when you need element refs **to act**, and once, not after each step.
+
+You are one session with one budget. Finish the job rather than stopping early and
+leaving a second run to repeat the setup — roughly a third of a short run's cost is
+spent before it does anything.
+`.trim();
+
+export { GUARDRAILS, CONVENTIONS, DELEGATION, OUTPUT, TEST_LEVELS, TOOLBOX, SHARED_SKILLS };

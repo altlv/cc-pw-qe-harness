@@ -57,6 +57,38 @@ export const families: Record<string, RoleFamily> = {
   'failure-investigator': 'testing',
 };
 
+/** How much of a browser a role may hold, before the environment narrows it further. */
+export type BrowserAccess = 'observe' | 'full';
+
+/**
+ * Which roles drive a real browser, and how far.
+ *
+ * **Family is the wrong axis for this**, which the first version got wrong by
+ * excluding coders on the grounds that they write specs running under the harness's
+ * own fixtures. True, and beside the point: where a spec *runs* and where its author
+ * *looks while writing it* are different questions. `e2e-coder` is told to scan for
+ * real selectors and to verify behaviour before designing, and was doing both through
+ * Bash and throwaway specs — a worse version of what `browser_generate_locator` does.
+ *
+ * The real axis is whether a role looks at running software. Four do.
+ *
+ * `observe` is a ceiling the environment cannot lift: `testability-reviewer` audits
+ * and reports, so no environment, local included, is a reason for it to hold
+ * `browser_fill_form`. The others need to interact — a failure you cannot reproduce
+ * is not localised, and behaviour you have not driven is an assumption. What they
+ * actually get is the **intersection** of this ceiling and the environment's policy.
+ *
+ * Absent means no browser: `api-coder` works through the API fixture, `unit-coder`
+ * and `integration-coder` never touch one, and `test-planner` designs from scans
+ * rather than from a live page.
+ */
+export const BROWSER_ACCESS: Record<string, BrowserAccess> = {
+  'e2e-coder': 'full',
+  'testability-reviewer': 'observe',
+  'exploratory-tester': 'full',
+  'failure-investigator': 'full',
+};
+
 /** Role names in one family, in the order the index declares them. */
 export function rolesIn(family: RoleFamily): string[] {
   return Object.keys(roles).filter((name) => families[name] === family);

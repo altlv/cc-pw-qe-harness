@@ -174,6 +174,72 @@ const MUTATIONS: Mutation[] = [
     breaks: "The harness must load its own .env, never the working directory's",
   },
   {
+    // The safety boundary. Ungating this hands production browser_click.
+    file: 'src/qe/browser-tools.ts',
+    find: '  if (policy.allowWrites) granted.push(...INTERACT);',
+    replace: '  granted.push(...INTERACT);',
+    breaks: 'A policy that forbids writes must not grant interaction tools',
+  },
+  {
+    // An allowlist containing arbitrary code execution is not an allowlist.
+    file: 'src/qe/browser-tools.ts',
+    find: "  'browser_get_config',\n];",
+    replace: "  'browser_get_config',\n  'browser_evaluate',\n];",
+    breaks: 'A tool that runs arbitrary JavaScript must never be granted',
+  },
+  {
+    // The role ceiling. Without it an auditing role holds browser_fill_form on any
+    // environment permissive enough to grant it.
+    file: 'src/qe/browser-tools.ts',
+    find: "  if (access === 'full') {",
+    replace: '  if (true) {',
+    breaks: 'A role ceiling must narrow the grant even where the environment is permissive',
+  },
+  {
+    // denyLabels enforced against nothing was the state for months.
+    file: 'src/qe/browser-guard.ts',
+    find: '        if (!verdict.allowed) {',
+    replace: '        if (false) {',
+    breaks: 'A control whose label commits to something must be refused',
+  },
+  {
+    file: 'src/qe/browser-guard.ts',
+    find: '      if (actions >= policy.maxActions) {',
+    replace: '      if (false) {',
+    breaks: 'The action ceiling must stop a session that has done enough',
+  },
+  {
+    // The branch measured at 4 turns and $0.2613 against 1 turn and $0.1871. Ignoring
+    // the map sends a pre-scanned session to rebuild it by hand, and nothing about
+    // the run looks wrong while it happens.
+    file: 'src/qe/session-briefing.ts',
+    find: '  if (!hasMap) {',
+    replace: '  if (true) {',
+    breaks: 'A session handed a scan must not be told to go and look first',
+  },
+  {
+    // An auditing role stays observation-only wherever it runs; saying otherwise on a
+    // permissive environment invites it to try tools it does not hold.
+    file: 'src/qe/session-briefing.ts',
+    find: "  if (access === 'observe') {",
+    replace: '  if (false) {',
+    breaks: 'An auditing role must be told its ceiling is the role, not the environment',
+  },
+  {
+    // Caught itself on the run that introduced it: `npm run precommit` was added and
+    // not documented, one message after five README drift fixes.
+    file: 'src/qe/housekeeping.ts',
+    find: '    .filter((name) => name !== ',
+    replace: '    .filter((name) => false && name !== ',
+    breaks: 'A command the README never mentions must be reported',
+  },
+  {
+    file: 'src/qe/housekeeping.ts',
+    find: '  return skills.filter((name) => !catalogue.includes(',
+    replace: '  return [].filter((name) => !catalogue.includes(',
+    breaks: 'A skill the catalogue never lists must be reported',
+  },
+  {
     file: 'src/quality/assertions.ts',
     find: 'if (assertions > 1 && explained === 0) {',
     replace: 'if (false) {',

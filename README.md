@@ -11,11 +11,11 @@ triaging a failure it did not watch happen needs that evidence as text.
 
 Honest state of each part of the name.
 
-|        | Built                                                                                                                                                                                                                                                                      | Not yet                                                                                                        |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **cc** | Bounded agent runner with a working stop path · eight roles in two families, coding and testing · every skill paired to a role and checked · a coder can call the planner · **roles validated end to end against live targets, their claims checked against ground truth** | Most roles still unexecuted · no skill invoked by name · delegation never exercised · no orchestration recipes |
-| **pw** | Five test levels on one runner — unit, integration, api, e2e, exploratory · network capture fixture · page scanner · **self-healing locators, with every heal recorded and gated** · clock-driven timing · per-subject projects                                            | Auth/storageState setup · multi-browser · sharding · component tests                                           |
-| **qe** | Test quality gate · release-gate verdict PASS/CONDITIONAL/FAIL with staleness detection · checkable report format · mutation testing                                                                                                                                       | Regression selection · flake tracking over time · quality metrics · tier-3 evals                               |
+|        | Built                                                                                                                                                                                                                                                                                                                         | Not yet                                                                                                                                 |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **cc** | Bounded agent runner with a working stop path · eight roles in two families, coding and testing · every skill and every tool paired to a role and checked · a coder can call the planner · **roles drive a real browser under a policy that decides which tools they hold, which targets they may touch, and how many times** | Most roles still unexecuted · no skill invoked by name · delegation never exercised · `maxStates` unenforced · no orchestration recipes |
+| **pw** | Five test levels on one runner — unit, integration, api, e2e, exploratory · network capture fixture · page scanner · **self-healing locators, with every heal recorded and gated** · clock-driven timing · per-subject projects                                                                                               | Auth/storageState setup · multi-browser · sharding · component tests                                                                    |
+| **qe** | Test quality gate · release-gate verdict PASS/CONDITIONAL/FAIL with staleness detection · checkable report format · mutation testing                                                                                                                                                                                          | Regression selection · flake tracking over time · quality metrics · tier-3 evals                                                        |
 
 Two words worth pinning down. **Validated** means the role ran, stayed inside its
 budget, produced a report that passes `npm run check-report`, and every number it
@@ -52,6 +52,9 @@ The harness lives in `src/`. Its own tests live in `tests/`.
 | `todo-fixture`    | local, bundled | Gives the suite and the network capture something real to exercise offline. Starts automatically.                    |
 | `countdown-timer` | external       | Time-based UI. Proves the no-arbitrary-waits rule — a 30-second countdown asserted in milliseconds via `page.clock`. |
 | `fakerestapi`     | external       | Validation target for the `api-coder` role. Has three real contract defects to write tests against.                  |
+
+Three of them, as a sample. `npm run targets` prints every registered subject, the
+environments it can be pointed at, and what each permits.
 
 Each app folder carries its own `app.config.ts`, `tests/`, and — where they exist —
 `pages/`, `scans/`, `coverage.md` and a `README.md` recording what was learned about
@@ -160,41 +163,73 @@ Every run is capped on turns, dollars and wall-clock; whichever trips first ends
 the run and returns a partial result saying why. An agent that cannot find the
 answer does not error — it keeps looking.
 
-```
-AGENT_MAX_TURNS=12
-AGENT_MAX_USD=1.00
-AGENT_TIMEOUT_MS=180000
+**Each role declares the turns its own work needs**, and the model tier scales that
+and the spend — `src/agents/models.ts` is the only place a model is chosen. Setting
+`AGENT_MAX_TURNS` overrides every role at once, so `.env.example` deliberately no
+longer ships a value: the one it used to ship cut the exploratory tester from the 30
+turns it asks for to 12, the tightest budget on the most open-ended role.
+
+Roles live in `src/agents/roles.ts` as SDK `AgentDefinition`s, in two families.
+**Coding** roles produce automation; **testing** roles produce judgement and hold no
+`Edit`. Each carries the guardrails, the repo conventions, the deterministic toolbox
+and the skills it must load — and none of that is convention: `tests/unit/roles.test.ts`
+fails if a skill is orphaned, if a judgement skill reaches a coder, or if a testing
+role can edit code.
+
+### Seeing and acting (`cc`)
+
+Roles that look at running software drive a real browser through Playwright MCP:
+
+```bash
+npm run role -- exploratory-tester "explore the cart" --env test --target http://localhost:3000
+npm run role -- testability-reviewer "audit this page" --env prod --target https://example.com --scan
 ```
 
-Roles live in `src/agents/roles.ts` as SDK `AgentDefinition`s, each carrying the
-guardrails and the repo conventions in its prompt.
+`--env` is required and has no default, because deleting a record on a local fixture
+is a test and the same click on production is an incident. What the policy for that
+environment permits becomes three bounds the model cannot decline:
+
+- **which tools it holds** — production grants observation only, and `browser_evaluate`
+  is refused everywhere, because an allowlist containing arbitrary code execution is
+  not a bound
+- **where the browser may go** — the origin, enforced by the browser itself
+- **which control, and how many** — labels that commit to something (pay, checkout,
+  subscribe, invite) are refused wherever you are
+
+`--scan` runs the page scanner first and hands the agent the map, so it spends its
+turns on whether anything is _wrong_ rather than on discovering what is there.
 
 ## Commands
 
-| Command                           | Does                                                                                                   |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `npm test`                        | Local subjects + harness self-tests (unit, integration, api, e2e)                                      |
-| `npm run test:external`           | Third-party subjects, opt-in                                                                           |
-| `npm run check`                   | format + lint + typecheck                                                                              |
-| `npm run assert-quality`          | Test quality gate                                                                                      |
-| `npm run gate`                    | Release verdict, refusing stale results                                                                |
-| `npm run mutate`                  | Breaks each enforced rule deliberately and checks the suite notices                                    |
-| `npm run scan -- <url>`           | Page scan + testability audit (`SCAN_DEEP=1` also probes hover, keyboard, responsive, scroll and zoom) |
-| `npm run crawl -- <url>`          | Crawl the site: link graph, broken links, orphans, template clusters                                   |
-| `npm run targets`                 | Every app and the environments it can be pointed at                                                    |
-| `npm run check-report -- <path>`  | Validate a QA report against `docs/report-format.md`                                                   |
-| `npm run role -- <role> "<task>"` | Run an agent role (needs a key)                                                                        |
-| `npm run triage -- <file>`        | Triage a failure JSON (needs a key)                                                                    |
+| Command                           | Does                                                                                                                                         |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`                        | Local subjects + harness self-tests (unit, integration, api, e2e)                                                                            |
+| `npm run test:external`           | Third-party subjects, opt-in                                                                                                                 |
+| `npm run check`                   | format + lint + typecheck                                                                                                                    |
+| `npm run assert-quality`          | Test quality gate                                                                                                                            |
+| `npm run gate`                    | Release verdict, refusing stale results                                                                                                      |
+| `npm run mutate`                  | Breaks each enforced rule deliberately and checks the suite notices                                                                          |
+| `npm run precommit`               | Housekeeping before a commit: dead commands and paths in docs, undocumented capability, stale `PLAN.md`, plus the drift no scanner can catch |
+| `npm run scan -- <url>`           | Page scan + testability audit (`SCAN_DEEP=1` also probes hover, keyboard, responsive, scroll and zoom)                                       |
+| `npm run crawl -- <url>`          | Crawl the site: link graph, broken links, orphans, template clusters                                                                         |
+| `npm run targets`                 | Every app and the environments it can be pointed at                                                                                          |
+| `npm run check-report -- <path>`  | Validate a QA report against `docs/report-format.md`                                                                                         |
+| `npm run role -- <role> "<task>"` | Run an agent role. Add `--env <local\|test\|prod> --target <url>` for one that drives a browser                                              |
+| `npm run triage -- <file>`        | Triage a failure JSON                                                                                                                        |
 
-Anything needing a key reads it from `.env` — see `.env.example`. `.env` is gitignored;
-never commit one.
+The agent commands need a credential, not necessarily a key: the SDK uses
+`ANTHROPIC_API_KEY` from `.env` if one is there, and otherwise the OAuth session from
+`claude login`. Verified 2026-09-13 by running a role with the variable absent.
+`.env` is gitignored; never commit one.
 
 ## Practices
 
 `.claude/skills/` — loadable skills for deciding what to test (`risk-assessment`,
-`test-design`, `exploratory-session`), judging findings (`oracle-check`, `bug-report`,
+`test-design`, `test-techniques`, `exploratory-session`), looking at a rendered page
+(`visual-inspection`), judging findings (`oracle-check`, `bug-report`,
 `flaky-test-detection`), writing tests (`pwtest`, `testability-audit`) and working
-honestly (`work-discipline`, `honesty-check`). See
+honestly (`work-discipline`, `honesty-check`). Every one of them is loaded by at least
+one role, and a test fails if that stops being true. See
 [`.claude/skills/README.md`](.claude/skills/README.md) for routing and for what is
 deliberately absent.
 
@@ -211,5 +246,6 @@ PR without `ANTHROPIC_API_KEY` skips rather than fails.
 
 ## Stack
 
-TypeScript (ESM/NodeNext) · `@playwright/test` · `@anthropic-ai/claude-agent-sdk` ·
+TypeScript (ESM/NodeNext) · `@playwright/test` · `@playwright/mcp` ·
+`@anthropic-ai/claude-agent-sdk` ·
 zod · faker · ESLint + Prettier · Node 20+

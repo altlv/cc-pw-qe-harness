@@ -61,11 +61,14 @@ heuristics are separate tools that also support it. All are needed.
 
 Curated, not appended. Delete anything that stops being true.
 
-- **`PLAN.md` is regenerated, not patched.** It says so at the top and it was
-  hand-patched six times in a single session anyway, each patch reasonable on its own
-  and the file 401 lines by the end. When it needs updating, re-run the commands and
-  rewrite it. `HANDOFF.md` is the opposite: curated and appended to deliberately, with
-  anything that stops being true deleted.
+- **`PLAN.md` must be accurate, not regenerated.** The old rule was "regenerate, never
+  hand-patch", and it failed both ways: patches accumulated anyway because a full
+  rewrite is expensive, and on 2026-09-13 a full rewrite destroyed a decision record
+  another session had not committed. Redefined that day to what the rule was for:
+  update the sections that changed, **re-run every number rather than recalling it**,
+  and delete anything no longer true rather than appending a correction beside it. The
+  failure to avoid is not a patch — it is a stale or misleading line surviving.
+  `HANDOFF.md` is curated the same way, with anything that stops being true deleted.
 - **Uncommitted work is invisible to a `git diff` self-check.** Before overwriting a
   file, run `git status` on it: if it carries uncommitted changes, whatever you are
   about to destroy was never in HEAD, so the diff afterwards cannot show it to you.
@@ -125,8 +128,29 @@ Curated, not appended. Delete anything that stops being true.
   worked. The specific failure: `\n` inside a string you are writing into a source file
   arrives as a **real line break**, giving an unterminated string literal — and quoting
   the heredoc does not prevent it. It happened five times in one session on
-  2026-09-11, twice after writing this line. Use the editing tools, or write a real
-  `.py`/`.mjs` file and run that.
+  2026-09-11 and twice more on 2026-09-13 — every one of those seven after this line
+  was already written, and two of them minutes after re-reading it. Reading the
+  warning does not work. Use the editing tools, or write a real `.py`/`.mjs` file and
+  run that.
+- **A prompt is behaviour; test it like code.** A briefing that said "do not re-derive
+  this from the page" three sentences after "begin with browser_navigate" made an
+  agent rebuild a map it had already been given: 4 turns and $0.2613 against 1 turn
+  and $0.1871 once the contradiction was gone. It was invisible because it lived
+  inline in a CLI where no test could reach it. Prompt logic with branches belongs in
+  a module with tests and a mutation, the same as any other branch.
+- **Measure a cost before naming a cause.** `--snapshot-mode full` attaches an
+  accessibility tree to every tool response, which is obviously the expensive thing —
+  and turning it off saved nothing ($0.0738 against $0.0742), because a screenshot
+  response carries no tree at all. The real cost was an explicit `browser_snapshot`
+  on a large page. Stated as a finding twice before anyone ran the comparison.
+- **The expensive way to look at a page is the text one.** An accessibility tree cost
+  $0.2345 on a real e-commerce page and $0.0675 on a trivial one; a screenshot of the
+  large page cost $0.0738. The tree scales with the page and the image does not, so
+  the intuition that text is cheap is backwards here. Cheaper than either: `npm run
+scan`, which costs no tokens and grades the selectors as well.
+- **A stated allowance gets spent.** A briefing saying "at most 200 actions" invites a
+  session to use them. Same limit, phrased as a backstop that means the session lost
+  its way, pulls the other direction.
 - **A whitespace-only edit does not survive `npm run format`.** Prettier reverts it, so
   a file you "touched" to test something is not actually modified. Check
   `git status --porcelain` rather than assuming.

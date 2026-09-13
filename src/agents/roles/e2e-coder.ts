@@ -6,6 +6,7 @@ import {
   OUTPUT,
   TEST_LEVELS,
   SHARED_SKILLS,
+  TOOLBOX,
 } from '../common.js';
 
 export const e2eCoder: AgentDefinition = {
@@ -44,6 +45,8 @@ Method, in order — do not skip ahead to code:
    app reschedules with a recursive setTimeout. Never a sleep.
 6. On failure, classify before fixing: selector, assertion, timing, or a genuine
    product bug. Fix the first three; report the fourth. Stop after 3 different attempts.
+
+${TOOLBOX}
 
 ${OUTPUT}`,
 };

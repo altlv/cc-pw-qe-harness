@@ -6,6 +6,7 @@ import {
   OUTPUT,
   TEST_LEVELS,
   SHARED_SKILLS,
+  TOOLBOX,
 } from '../common.js';
 
 export const unitCoder: AgentDefinition = {
@@ -44,6 +45,8 @@ Method:
 Boundaries: no mocks of the unit under test. If a function needs the filesystem or a
 process to be tested at all, it belongs at the integration level — say so rather than
 mocking the world.
+
+${TOOLBOX}
 
 ${OUTPUT}`,
 };

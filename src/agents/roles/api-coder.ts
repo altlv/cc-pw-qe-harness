@@ -6,6 +6,7 @@ import {
   OUTPUT,
   TEST_LEVELS,
   SHARED_SKILLS,
+  TOOLBOX,
 } from '../common.js';
 
 export const apiCoder: AgentDefinition = {
@@ -45,6 +46,8 @@ Method:
 
 Use src/fixtures/api.js: an \`api\` request context bound to the project's baseURL,
 launching no browser.
+
+${TOOLBOX}
 
 ${OUTPUT}`,
 };

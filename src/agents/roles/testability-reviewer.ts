@@ -1,5 +1,5 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, OUTPUT, SHARED_SKILLS } from '../common.js';
+import { GUARDRAILS, OUTPUT, SHARED_SKILLS, TOOLBOX } from '../common.js';
 
 export const testabilityReviewer: AgentDefinition = {
   description:
@@ -30,6 +30,8 @@ Boundaries: prioritise honestly. A missing test id on a primary action is worth
 raising; one on a footer link is noise, and a report full of noise gets ignored
 entirely. A page of text-dependent controls is acceptable when the product ships in one
 language — say so rather than filing forty tickets.
+
+${TOOLBOX}
 
 ${OUTPUT}`,
 };

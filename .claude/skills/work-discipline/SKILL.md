@@ -76,14 +76,41 @@ Every parked item gets a return condition.
 A constraint you invented is not a constraint. Before reporting something as blocked,
 check that the blocker is real and external.
 
-## End gate
+## End gate — before every commit
 
-Regenerate `PLAN.md`: commands actually run and their results, what is proven, what
-is not, open gaps, and the exact next action. Re-run the checks rather than recalling
-them. Touch `HANDOFF.md` only if a working agreement or trap changed — if you are
-updating it every session, something volatile has leaked into it.
+**The trigger is a commit, not the end of a session.** "End of session" presumes a
+boundary an interactive session never reaches; it just continues until someone stops
+asking. A commit is real, frequent, and observable, and it is the moment the state
+files are about to become wrong for everybody else.
+
+Run `npm run precommit`. It has two halves and both are the gate:
+
+- The **mechanical** half exits non-zero on a document naming a command or a path that
+  does not exist, on a command or skill nobody documented, and on a `PLAN.md` last
+  verified against a different commit. Fix, do not bypass.
+- The **judgement** half is a printed list of what no scanner can check. Read it and
+  answer each item, because the drift that hurts is a sentence that was true when it
+  was written. A README once recommended an `AGENT_MAX_TURNS=12` that the same session
+  had deleted for silently overriding every role's budget, and told people a command
+  needed an API key after a measurement had proved it did not. Both were correct
+  sentences that quietly stopped being correct, and no check will ever catch that.
+
+Then bring `PLAN.md` up to date: commands actually run and their results, what is
+proven, what is not, open gaps, and the exact next action. **Re-run every number rather
+than recalling it**, update the sections that changed, and delete anything no longer
+true — nothing stale or misleading survives the commit. Read the working copy first,
+because a plan may hold uncommitted work a `git diff` cannot show you afterwards.
+
+Touch `HANDOFF.md` only if a working agreement or trap changed — if you are updating
+it every session, something volatile has leaked into it.
+
+Do not restate `precommit`'s checklist here or anywhere else. One list, in the command
+that prints it; a copy is a copy that drifts.
 
 The test: could someone continue this work tomorrow with no access to the
 conversation? If not, the end gate is not done.
+
+**This gate belongs to the session that owns the commit.** A subagent does not edit
+`PLAN.md` — it reports, and the session that invoked it decides.
 
 _Lineage and licences: `docs/sources.md`._

@@ -1,5 +1,5 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, OUTPUT, SHARED_SKILLS } from '../common.js';
+import { GUARDRAILS, OUTPUT, SHARED_SKILLS, TOOLBOX } from '../common.js';
 
 export const failureInvestigator: AgentDefinition = {
   description:
@@ -43,6 +43,8 @@ Method:
 Boundaries: hand off a localisation, not a speculative patch. Do not edit product code.
 Do not widen a selector or relax an assertion to make the symptom disappear — that
 converts a product defect into a silent one.
+
+${TOOLBOX}
 
 ${OUTPUT}`,
 };

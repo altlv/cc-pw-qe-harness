@@ -27,6 +27,11 @@ export interface AgentRunOptions {
    * on the same model as the coder that called it.
    */
   model?: string;
+  /**
+   * Per-call permission check. The SDK documents it as fail-closed, which is the
+   * property that makes it usable as a safety boundary rather than a hint.
+   */
+  canUseTool?: Options['canUseTool'];
   cwd?: string;
 }
 
@@ -79,6 +84,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
       prompt: options.prompt,
       options: {
         model: options.model ?? model(),
+        canUseTool: options.canUseTool,
         systemPrompt: options.systemPrompt,
         maxTurns: budget.limits.maxTurns,
         allowedTools: options.allowedTools,

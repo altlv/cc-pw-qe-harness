@@ -160,8 +160,17 @@ This finds what is visible. It says nothing about whether the numbers behind the
 are right, whether a control does what it claims, or whether anything persisted —
 `test-techniques` and `exploratory-session` cover those.
 
-It also depends on being able to see. An agent with no screenshot tool cannot run this
-skill at all, and should say so rather than substituting a DOM query and calling it
-looking.
+It also depends on being able to see. Roles that need to — `exploratory-tester` and
+`testability-reviewer` — drive a real browser through the Playwright MCP server, with
+`browser_take_screenshot`, `browser_snapshot`, `browser_hover`, `browser_mouse_wheel`
+and `browser_resize` for the position sweep and the forced conditions. **Any other
+agent still cannot run this skill** and should say so rather than substituting a DOM
+query and calling it looking.
+
+What you are granted depends on the environment. Under a `prod` policy the browser is
+observation-only: no clicking, typing or form submission, because those tools are
+absent rather than discouraged. That rules out the state axis of the sweep — a panel
+you cannot open is a panel you cannot inspect — so report those cells as unreached
+instead of quietly narrowing the sweep to what the policy allowed.
 
 _Lineage and licences: `docs/sources.md`._

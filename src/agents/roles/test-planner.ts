@@ -1,5 +1,5 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { GUARDRAILS, OUTPUT, TEST_LEVELS, SHARED_SKILLS } from '../common.js';
+import { GUARDRAILS, OUTPUT, TEST_LEVELS, SHARED_SKILLS, TOOLBOX } from '../common.js';
 
 /**
  * Split out of the four coder roles, which each carried `test-design` and did their own
@@ -50,6 +50,8 @@ work and it belongs to the exploratory tester or the failure investigator.
 
 You may be invoked by a coder that was handed no design. Answer the design question
 they actually have — do not widen it into a test strategy for the whole app.
+
+${TOOLBOX}
 
 ${OUTPUT}`,
 };

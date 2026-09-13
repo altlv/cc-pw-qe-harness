@@ -1,29 +1,43 @@
 # PLAN — where we are and what is next
 
-Regenerated at each end gate, never hand-patched. Status and next actions live
+**Kept accurate, never left stale.** Before every commit, every fact here is re-verified
+by running the command that produces it; sections that changed are updated in place,
+and anything no longer true is deleted rather than left beside its correction. A stale
+number is worse than no number, because it is believed. Status and next actions live
 together because they are one sentence: what is true now decides what comes next.
 
 Durable working agreements live in `HANDOFF.md`. Facts about an app under test live in
 that app's `README.md`. Why a line of code exists lives in a comment next to it.
 Attribution lives in `docs/sources.md`. None of that belongs here.
 
-**Regenerated:** 2026-09-13, commands re-run at the gate.
+**Verified:** 2026-09-13 — every number below re-run before this commit.
 
 ## Where we are
 
-Head is `092b9b9`. One uncommitted tree on top: agent roles split into two families,
-a planning role, delegation turned on, model and budget configuration centralised, and
-`.env` isolation.
+Head is `fc60917`. One uncommitted tree on top: roles drive a real browser through
+Playwright MCP, bounded by the exploration policy at three layers; the toolbox reaches
+every role; the session briefing is a tested module rather than inline prompt text;
+`npm run precommit` guards documentation drift before each commit.
 
-## Proven — direct evidence, re-run at this gate
+## Proven — direct evidence, re-run before this commit
 
-- `npm test` **350 passed** — unit 258, harness 63, integration 22, todo-fixture 7 ·
+- `npm test` **414 passed** — unit 314, harness 63, integration 30, todo-fixture 7 ·
   `npm run test:external` **22**
-- `npm run gate` **PASS** · `npm run assert-quality` **28 files, 0 findings**
-- `npm run mutate` **70/70**, one mutation per enforced rule, no survivors
-- `npm run check` clean
+- `npm run gate` **PASS** · `npm run assert-quality` **34 files, 0 findings**
+- `npm run mutate` **79/79**, one mutation per enforced rule, no survivors
+- `npm run check` clean · `npm run precommit` clean
 - **A role runs.** `test-planner` executed against the live API on 2026-09-13: 1 turn,
   $0.1677, 6s, returned what it was asked for
+- **A role sees.** `testability-reviewer` against academybugs under a `prod` policy
+  reported "a cookie-consent banner overlapping the third product image" — an
+  occlusion, which is a spatial fact no DOM query returns. 4 turns, $0.0728, 17s
+- **A role reasons from a pre-computed map.** Given `npm run scan` output, it named
+  `getByRole('link', { name: "Select Options" })` as the most fragile selector on the
+  page — three products, one accessible name, "resolves, looks valid, and silently
+  clicks the wrong product instead of failing loud"
+- **The policy binds three ways, none of them a promise the model makes:** the tool
+  allowlist (what it may hold), the browser's own `--allowed-origins` (where it may
+  go), and a fail-closed `canUseTool` guard (which target, and how many times)
 - **The harness needs no API key.** A role ran with `ANTHROPIC_API_KEY` absent from the
   process, on the Claude Code OAuth session alone — 1 turn, $0.027. `.env.example` had
   claimed the key was required since before the fallback existed, which is why one was
@@ -52,9 +66,19 @@ a planning role, delegation turned on, model and budget configuration centralise
   skill discovery may depend on those sources. If it does, the prose is still doing all
   the work. One live run with a skill-specific probe settles it.
 - **Delegation has never fired.** A coder can call `test-planner`; none has.
+- **`maxStates` is enforced by nothing.** The per-call guard sees one tool call at a
+  time and cannot tell a new page from a return to an old one. It needs the driver's
+  state model. `denyLabels` and `maxActions` are enforced; this one is not.
+- **The label guard reads the model's own words.** Playwright MCP names a target by an
+  opaque `ref` plus a description the model writes, so "Delete account" is refused and
+  "the third button" is not. A guard against accident, not against an adversary —
+  there is a test asserting exactly that limit.
+- **No interactive session has run.** Every browser run so far was read-only under a
+  `prod` policy, so `INTERACT`, `FILL` and the action ceiling are unexercised against
+  a live page.
 - **Self-healing has never faced a change someone else made.**
 - Framework detection is largely unverified; three tiers confirmed against live sites.
-- Seven of eight roles have never run. No role has written a browser spec.
+- Six of eight roles have never run. No role has written a browser spec.
 
 ## The measured gap
 
@@ -77,8 +101,13 @@ products with no purchasable path, an inert currency switcher, dead pagination �
 **interaction**, and the harness never clicks anything.
 
 **The honest headline: this is a good map and not yet a tester.** Nothing since has
-moved that number. The 2026-09-11 work fixed how the map reads; the 2026-09-13 work
-fixed who does the thinking and what pays for it. Neither clicked anything.
+moved that number. 2026-09-11 fixed how the map reads. 2026-09-13 fixed who does the
+thinking, what pays for it, and — at the end — gave the roles hands and eyes.
+
+**The hands are new and have not been used.** A role can now click, under a policy
+that decides which controls and how many, and no session has done it once. The
+difference between this and the previous entry is that the gap is a session away
+rather than a capability away.
 
 ## Work queue
 
@@ -91,16 +120,15 @@ dependency puts the most-wanted thing on top and quietly makes it unstartable.
 
 ### Foundations — nothing waits on these
 
-| #   | Item                                                                                                                  | Blocked by | Why                                                                                                                                                                                    |
-| --- | --------------------------------------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **E4 — heuristics as a callable layer.** Trigger to move                                                              | —          | The driver's action selection reads from this. Without it a driver is a random clicker. 183 heuristic items exist across the skills with no bridge from any of them to an action       |
-| 2   | **A way to see.** No role has a screenshot tool, and `visual-inspection` says outright that it cannot run without one | —          | Roughly half the defects found by hand were visible and unqueryable: a tile 30px short, a panel over the footer, a cart preview off the page edge. Also gates the driver's visual work |
+| #   | Item                                                     | Blocked by | Why                                                                                                                                                                              |
+| --- | -------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **E4 — heuristics as a callable layer.** Trigger to move | —          | The driver's action selection reads from this. Without it a driver is a random clicker. 183 heuristic items exist across the skills with no bridge from any of them to an action |
 
 ### Then — in this order
 
 | #   | Item                                                                                                                                | Blocked by | Why                                                                                                                                                                             |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 3   | **E5 — the driver.** Action selection under E4, obeying the environment policy, diffing via `identity.ts`                           | 1, 2       | The blocker on the benchmark number. Everything the harness misses, it misses for want of a click                                                                               |
+| 3   | **E5 — the driver.** Action selection under E4, diffing via `identity.ts`                                                           | 1          | Much smaller than it was: the hands exist and are bounded, so this is now action _selection_ rather than a driver. Set `allowWrites` and give it something to choose with       |
 | 4   | **The map is a single state.** Transient surfaces — mini-cart, dropdown, modal, toast, drawer — appear in no inventory and no crawl | 3          | Reaching them means opening them, which means interacting. A defect was missed for exactly this reason: the cart page was tested thoroughly and the cart _preview_ never opened |
 | 5   | **E6 — enforce the session report** through `check-report`                                                                          | —          | Could start now; wanted before E7, because an unenforced report format is how a session's findings quietly go missing                                                           |
 | 6   | **E7 — a real agent session against the scored benchmark**                                                                          | 1–3, 5     | The empirical test of all of it, and the only thing that turns "better" from opinion into a number. No longer blocked on a key — OAuth works                                    |
@@ -148,6 +176,7 @@ Three separate problems, and conflating them is the trap:
 | 20  | The crawl writes no artefact, so two crawls cannot be diffed                                                                                                                                                                                                                                                                                                                                     |
 | 21  | Scans overwrite and nothing reads one back — no drift detection between runs                                                                                                                                                                                                                                                                                                                     |
 | 22  | Recipes 0 of 9 · agent contracts 7 of 22 · schemas for requirements-analysis and triage-report not ported                                                                                                                                                                                                                                                                                        |
+| 23  | **`maxStates` enforcement** — needs the driver's state model; the per-call guard cannot see state. Pairs with item 3                                                                                                                                                                                                                                                                             |
 
 ## Considered and declined
 
@@ -166,21 +195,19 @@ evidence — but bring the evidence, not the idea again.
 Lettered like the architecture gaps, because they are the same kind of thing: known
 structural weaknesses rather than features.
 
-This file drifted through the whole of 2026-09-13 and was only regenerated when the
-user asked, having already been hand-patched on 09-12 against its own stated rule.
-That is not three people being careless; it is one unenforced rule, and every rule in
-this repo that survives is mechanically checked. Diagnosed as three separate causes,
-so each gets its own fix rather than a resolution to try harder.
+This file drifted through the whole of 2026-09-13 and was only brought up to date when
+the user asked. That is not carelessness; it was one unenforced rule, and every rule in
+this repo that survives is mechanically checked. Three causes, three fixes:
 
-| #   | Cause                                                                                                                 | Fix                                                                                                                                                                                                                                                                                                                                                         |
-| --- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | **Nothing checks it.** The end gate is prose in a file that asks nicely                                               | Staleness detection in `gate.ts`, reusing the mechanism at `src/cli/gate.ts:79` that already refuses test results older than their source. This file records the commit it was regenerated at; the gate compares against HEAD and the working tree. Stale is a **risk in the verdict, never a blocker** — a blocker mid-session gets disabled inside a week |
-| D2  | **Regenerating is expensive.** ~200 lines and four commands, so it gets shortcut into a hand-patch                    | `npm run plan:facts` emits the _Proven_ block from real commands, ready to paste. The judgement half stays written by hand; the counts stop being typed by hand. Hold this until D1 and D3 have been tried — if they work, the cost stops mattering                                                                                                         |
-| D3  | **A session has no end.** "End gate" presumes a boundary that an interactive session never reaches; it just continues | Move the trigger from _end of session_ to **before every commit**. The user owns every commit, which makes it a real, frequent, observable boundary, and `npm run gate` already runs there                                                                                                                                                                  |
+| #   | Cause                                                                                         | State                                                                                                                                                                                                                                                 |
+| --- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | **Nothing checked it.** The end gate was prose in a file that asked nicely                    | **Done, differently than planned.** Not in `gate.ts`: `npm run precommit` refuses a `PLAN.md` whose recorded head is not HEAD, alongside dead commands and paths, undocumented commands, and uncatalogued skills. A blocker at the commit, not a risk |
+| D2  | **Updating was expensive**, so it got skipped                                                 | **Open, smaller.** The rule no longer demands a full rewrite — targeted updates are allowed, and re-running the numbers is the cost that remains. `npm run plan:facts` to emit the _Proven_ block is held until that cost actually bites              |
+| D3  | **A session has no end.** "End gate" presumed a boundary an interactive session never reaches | **Done.** The `work-discipline` end gate is now "before every commit" and runs `npm run precommit`, whose judgement list is derived from the diff                                                                                                     |
 
-D1 and D3 are worth doing together and are roughly thirty lines against machinery that
-already exists. None of this makes anyone diligent — it makes the failure visible,
-which is the only version that has worked here before.
+None of this makes anyone diligent — it makes the failure visible, which is the only
+version that has worked here before. It still cannot catch a sentence that was true and
+quietly stopped being true; that is what reading the judgement list is for.
 
 ## Architecture gaps
 
@@ -212,6 +239,12 @@ practice-software-testing.
 
 | Item                                        | Outcome                                                                                                                                                    |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documentation drifted unchecked             | **DONE** — `npm run precommit`: dead commands and paths, undocumented commands, uncatalogued skills, a stale plan head; obligations derived from the diff  |
+| "Regenerate, never hand-patch" misfired     | **DONE** — redefined as "kept accurate": re-run every number, update what changed, delete what is no longer true                                           |
+| A way to see                                | **DONE** — Playwright MCP, granted per role and per environment. Proved by a role reporting an occlusion, which no DOM query returns                       |
+| The exploration policy bound nothing        | **DONE** — it compiles to the tool allowlist, the browser's allowed origins, and a fail-closed per-call guard. `actionAllowed` had no caller for months    |
+| The toolbox was invisible                   | **DONE** — every role gets it; three of eight had named a single tool each. Every command in it is checked against `package.json`                          |
+| Prompt logic nothing could test             | **DONE** — `session-briefing.ts`, after an inline contradiction cost 4 turns and $0.2613 against 1 turn and $0.1871                                        |
 | Agent-to-skill pairing                      | **DONE** — every skill declared by a role through the SDK's `skills` field, prose and field must agree, nothing orphaned, all enforced                     |
 | Roles conflated two kinds of work           | **DONE** — a `coding` family and a `testing` family, as data in `roles.ts` rather than a naming convention. Two names that lied were corrected             |
 | Design done by whoever wrote the code       | **DONE** — `test-planner` owns risk and design and holds no Edit; the four coders shed `test-design`                                                       |

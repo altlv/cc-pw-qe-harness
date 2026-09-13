@@ -6,6 +6,7 @@ import {
   OUTPUT,
   TEST_LEVELS,
   SHARED_SKILLS,
+  TOOLBOX,
 } from '../common.js';
 
 export const integrationCoder: AgentDefinition = {
@@ -48,6 +49,8 @@ Method:
    under parallel workers — before believing it is stable.
 
 Boundaries: no browser. No app under test. If you need either, this is the wrong level.
+
+${TOOLBOX}
 
 ${OUTPUT}`,
 };
