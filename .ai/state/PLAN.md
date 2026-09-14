@@ -12,7 +12,7 @@ Attribution lives in `docs/sources.md`. None of that belongs here.
 
 ## Where we are
 
-Head is `44eedc1` — the commit this file was last checked against. A file cannot name
+Head is `f08187b` — the commit this file was last checked against. A file cannot name
 the commit that contains it, so `npm run precommit` accepts HEAD itself, or HEAD's
 parent when the latest commit updated this file.
 
@@ -128,6 +128,11 @@ the code.
   guard refuses git writes, secrets and foreign hosts, not paths — and nothing removes
   finished worktrees, by design, so they accumulate beside the repository until a person
   removes them.
+- **CI has not yet passed with the plan-stamp rule.** Every CI run since that rule landed
+  failed three precommit tests: `actions/checkout` fetched one commit, so HEAD's parent
+  did not exist and a correctly stamped plan was refused. Reproduced with a depth-1 clone,
+  which refuses, and a depth-2 clone, which passes; CI now fetches two. Proven once a CI
+  run is green, not before.
 - **Three countdown-timer failures are unexplained.** One `npm run test:external` on
   2026-09-14 failed three of its six tests; 90 runs since — 30 parallel, 30 on one
   worker, 30 beside `npm test` — failed none, nor did the full verification run after

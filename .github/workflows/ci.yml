@@ -14,7 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # Two commits, not the default one: precommit accepts a PLAN.md stamped with HEAD's
+      # parent, and a one-commit checkout has no parent to compare with. CI refused every
+      # correctly stamped plan for that reason alone until 2026-09-14.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-node@v4
         with:

@@ -239,6 +239,12 @@ scan`, which costs no tokens and grades the selectors as well.
   fixture option and `test.use()`.
 - **A fixture's teardown runs after the test body.** A test cannot observe a file its
   own teardown will write; assert it from the next test, in serial mode.
+- **A rule that reads git history must be checked where history is shallow.** precommit
+  accepts a plan stamped with HEAD's parent, and `actions/checkout` fetches one commit by
+  default — so from 2026-09-13 CI refused every correctly stamped plan, and on 2026-09-14
+  those red runs were first explained to the user as real drift. A depth-1 clone
+  reproduced CI's exact message in a minute. Reproduce CI's conditions before naming a
+  cause for a CI-only failure.
 - **Importing a CLI module runs it.** A script meant to check mutation anchors imported
   `src/cli/mutate.ts` for its list and started a full mutation run, rewriting source
   files while it went. Every `src/cli/*.ts` does its work at the top level. To read what
