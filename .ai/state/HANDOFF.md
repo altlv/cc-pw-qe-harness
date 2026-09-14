@@ -69,6 +69,12 @@ Curated, not appended. Delete anything that stops being true.
   and delete anything no longer true rather than appending a correction beside it. The
   failure to avoid is not a patch — it is a stale or misleading line surviving.
   `HANDOFF.md` is curated the same way, with anything that stops being true deleted.
+- **Never chain a command that reads a file with the command that creates it — and
+  `|| cat > /dev/null` is not a no-op.** On 2026-09-13 a backgrounded command ran a
+  script that did not exist yet; the `||` fell through to `cat > /dev/null`, which
+  waited on stdin for five hours. Write in one step and run in the next; `|| true` is
+  what swallows a failure. A background task whose output was never read is a loose
+  end, not a finished one.
 - **Never describe the working tree in a file that will be committed.** "Uncommitted on
   top: …" was written into `PLAN.md` and became false the moment the commit landed. A
   committed file describes what the commit contains. The same logic bounds the plan's
@@ -162,8 +168,15 @@ scan`, which costs no tokens and grades the selectors as well.
   `git status --porcelain` rather than assuming.
 - **Do not share an output path between parallel tests**, and do not assert on the size
   of a shared collection. Both have caused flakes here.
-- **`--reporter=line` on the CLI replaces the reporters configured in
-  `playwright.config.ts`**, which silently starves the gate of its JSON results.
+- **A run that writes nothing leaves the last run's results behind.** `--reporter=line`
+  or `--reporter=json` on the CLI replaces the reporters configured in
+  `playwright.config.ts`, so `results.json` is not written and still holds the previous
+  run. The gate refuses stale results; a hand-typed counting snippet did not, and quoted
+  414 tests when 420 existed. Until 2026-09-13 `npm run test:external` also wrote that
+  same file, and the gate returned PASS over 22 external tests without ever seeing the
+  local suite. External runs now write `results-external.json`, and the numbers
+  `PLAN.md` quotes come from `npm run plan:facts`, which refuses anything older than the
+  code.
 - **`page.setContent` reuses the same window.** A second `customElements.define` of
   the same tag throws, and the page quietly keeps the first definition — so a test
   that thinks it loaded new markup is still running against the old. Attach shadow

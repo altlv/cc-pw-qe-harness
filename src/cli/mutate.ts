@@ -248,6 +248,13 @@ const MUTATIONS: Mutation[] = [
     breaks: 'A plan the latest commit did not update must not count as current',
   },
   {
+    // The check a hand-typed count lacked: it read an old results file and quoted it.
+    file: 'src/qe/facts.ts',
+    find: '  if (Math.floor(newestSource) > ranAt) {',
+    replace: '  if (false) {',
+    breaks: 'Results older than the code must never be quotable',
+  },
+  {
     file: 'src/quality/assertions.ts',
     find: 'if (assertions > 1 && explained === 0) {',
     replace: 'if (false) {',
@@ -735,6 +742,14 @@ if (scoped) {
   );
 } else {
   console.log(`\nMutation score: ${caught}/${total} (${score}%)`);
+  // Recorded for `npm run plan:facts`, only on a full run — a scoped record would be
+  // quoted as the score. Written after every mutation has been restored, so its
+  // timestamp is later than any file this run touched.
+  await writeFile(
+    'artifacts/mutation.json',
+    `${JSON.stringify({ caught, total, ranAt: new Date().toISOString() }, null, 2)}\n`,
+    'utf8',
+  );
 }
 
 if (survivors.length > 0) {

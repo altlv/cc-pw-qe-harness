@@ -210,6 +210,7 @@ turns on whether anything is _wrong_ rather than on discovering what is there.
 | `npm run gate`                    | Release verdict, refusing stale results                                                                                                      |
 | `npm run mutate`                  | Breaks each enforced rule deliberately and checks the suite notices                                                                          |
 | `npm run precommit`               | Housekeeping before a commit: dead commands and paths in docs, undocumented capability, stale `PLAN.md`, plus the drift no scanner can catch |
+| `npm run plan:facts`              | The numbers `PLAN.md` quotes, read from the runs that produced them — refuses any that predate the code                                      |
 | `npm run scan -- <url>`           | Page scan + testability audit (`SCAN_DEEP=1` also probes hover, keyboard, responsive, scroll and zoom)                                       |
 | `npm run crawl -- <url>`          | Crawl the site: link graph, broken links, orphans, template clusters                                                                         |
 | `npm run targets`                 | Every app and the environments it can be pointed at                                                                                          |

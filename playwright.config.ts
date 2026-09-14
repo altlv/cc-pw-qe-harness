@@ -37,9 +37,20 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI
-    ? [['github'], ['html', { open: 'never' }], ['json', { outputFile: 'artifacts/results.json' }]]
-    : [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'artifacts/results.json' }]],
+  // External runs write their own results file. They used to share results.json with
+  // the local suite, so `npm run test:external` silently replaced the gate's evidence
+  // with 22 third-party tests — and the gate, reading that, returned PASS without ever
+  // seeing the local suite. Two runs, two files; the gate reads only the local one.
+  reporter: [
+    process.env.CI ? ['github'] : ['list'],
+    ['html', { open: 'never' }],
+    [
+      'json',
+      {
+        outputFile: includeExternal ? 'artifacts/results-external.json' : 'artifacts/results.json',
+      },
+    ],
+  ],
 
   use: {
     // Traces and DOM snapshots pair with the network capture: together they are

@@ -1,8 +1,9 @@
-import { readdir, readFile, stat, writeFile, mkdir } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { analyzeSpec, type QualityFinding } from '../quality/assertions.js';
 import { loadHealRecords } from '../qe/baselines.js';
 import { assessGate, type RunStats } from '../qe/gate.js';
+import { newestSourceMtime } from '../qe/source-mtime.js';
 import { formatVerdict } from '../qe/verdict.js';
 
 interface PlaywrightSpec {
@@ -33,26 +34,6 @@ async function findSpecs(dir: string): Promise<string[]> {
     }),
   );
   return files.flat();
-}
-
-/** Most recent mtime of any source or test file, in ms. */
-async function newestSourceMtime(roots: string[]): Promise<number> {
-  let newest = 0;
-  async function walk(dir: string): Promise<void> {
-    const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-    for (const entry of entries) {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || entry.name === 'scans') continue;
-        await walk(full);
-      } else if (/\.(ts|mjs|js|html)$/.test(entry.name)) {
-        const info = await stat(full).catch(() => null);
-        if (info !== null) newest = Math.max(newest, info.mtimeMs);
-      }
-    }
-  }
-  await Promise.all(roots.map((root) => walk(resolve(root))));
-  return newest;
 }
 
 const resultsPath = resolve(process.argv[2] ?? 'artifacts/results.json');
