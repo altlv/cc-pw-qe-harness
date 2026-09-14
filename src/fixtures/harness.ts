@@ -1,5 +1,12 @@
 import { test as base, expect, type Locator } from '@playwright/test';
 import { NetworkRecorder } from '../capture/network.js';
+import {
+  FAULT_ANNOTATION,
+  FAULT_BODY,
+  FAULT_STATUS,
+  corruptible,
+  faultRequested,
+} from '../qe/fault.js';
 import { baselineKey, loadBaselines, saveBaselines, writeHealRecords } from '../qe/baselines.js';
 import {
   captureBaseline,
@@ -55,11 +62,20 @@ interface HarnessOptions {
    * changing. Turn it on deliberately: `CAPTURE_BASELINES=1 npm test`.
    */
   captureBaselines: boolean;
+  /**
+   * Whether every server response this test's page receives is replaced with a 500.
+   *
+   * Off in every ordinary run. `npm run fault-check` turns it on to prove a spec would
+   * notice its server going wrong: a spec that stays green is asserting nothing the
+   * server decides. A harness self-test can set it with `test.use`.
+   */
+  harnessFault: boolean;
 }
 
 interface HarnessFixtures {
   network: NetworkRecorder;
   healing: Healing;
+  faultInjection: void;
 }
 
 /**
@@ -74,6 +90,32 @@ export const test = base.extend<HarnessOptions & HarnessFixtures>({
   baselineFile: [undefined, { option: true }],
   healJournalDir: ['artifacts/heals', { option: true }],
   captureBaselines: [process.env.CAPTURE_BASELINES === '1', { option: true }],
+  harnessFault: [faultRequested(), { option: true }],
+
+  // Registered before the test body runs, so the page is corrupted from its first
+  // request. Only calls to the server are replaced; the document and its assets load,
+  // so a spec reaches its assertions and is judged on them.
+  faultInjection: [
+    async ({ page, harnessFault }, use, testInfo) => {
+      if (!harnessFault) {
+        await use();
+        return;
+      }
+      let corrupted = 0;
+      await page.route('**/*', async (route) => {
+        if (!corruptible(route.request().resourceType())) return route.continue();
+        corrupted += 1;
+        return route.fulfill({
+          status: FAULT_STATUS,
+          contentType: 'application/json',
+          body: FAULT_BODY,
+        });
+      });
+      await use();
+      testInfo.annotations.push({ type: FAULT_ANNOTATION, description: String(corrupted) });
+    },
+    { auto: true },
+  ],
 
   network: [
     async ({ page }, use, testInfo) => {

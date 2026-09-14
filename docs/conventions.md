@@ -61,6 +61,14 @@ lives in a sibling test, say so on the write:
 // Read back in: 'should persist a created book so it can be read back'
 ```
 
+## A spec must notice its server failing
+
+A green spec proves it ran. `npm run fault-check -- <spec>` proves more: it reruns the
+spec with every call to the server answered with a 500, and refuses one that still
+passes — that spec asserts nothing the server decides. The post-run gate runs it on
+every app spec a coder changes. A spec whose page makes no server calls is reported as
+untouched, not blamed.
+
 ## Probe values
 
 Import them from `src/fixtures/probes.js` (`PROBES`, `boundaryValues`,

@@ -137,7 +137,8 @@ they are free, exact, and repeatable, and your turns are none of those things.
 | npm run check                      | Format, lint and typecheck in one                              |
 | npm run ideas -- <scan.json>       | The cases a saved scan supports — boundary values, probes, write sequences, effect tags — the gates they face, and the judgement left to you. --catalogue lists every heuristic by what does the work |
 | npm run assert-quality             | Refuses a test that asserts nothing, or checks a write only by its render |
-| npm run mutate -- --changed        | Proves the tests you just wrote can actually fail              |
+| npm run fault-check -- <spec>      | Proves an app spec notices its server failing: reruns it with every response a 500 and refuses one that stays green |
+| npm run mutate -- --changed        | Proves the harness's own rules are tested. It never touches app specs — for those, fault-check |
 | npm run gate                       | PASS / CONDITIONAL / FAIL, with staleness detection            |
 | npm run check-report -- <path>     | Validates your own report before you hand it over              |
 | npm run triage -- <file.json>      | Classifies a failure from a results file                       |

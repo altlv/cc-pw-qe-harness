@@ -12,7 +12,7 @@ Attribution lives in `docs/sources.md`. None of that belongs here.
 
 ## Where we are
 
-Head is `6e03534` — the commit this file was last checked against. A file cannot name
+Head is `933a9db` — the commit this file was last checked against. A file cannot name
 the commit that contains it, so `npm run precommit` accepts HEAD itself, or HEAD's
 parent when the latest commit updated this file.
 
@@ -52,6 +52,10 @@ them, from `npm run plan:facts`, which refuses any run older than the code.
 - **The policy binds three ways, none of them a promise the model makes:** the tool
   allowlist (what it may hold), the browser's own `--allowed-origins` (where it may
   go), and a fail-closed `canUseTool` guard (which target, and how many times)
+- **`npm run fault-check` holds both ways on real specs** — its integration test runs
+  the probe spec under the fault and requires the client-only test refused as survived
+  and the server-dependent one credited as caught, and runs the todos API spec and
+  requires every test caught. 2026-09-14
 - **The harness needs no API key.** A role ran with `ANTHROPIC_API_KEY` absent from the
   process, on the Claude Code OAuth session alone — 1 turn, $0.027. `.env.example` had
   claimed the key was required since before the fallback existed, which is why one was
@@ -82,6 +86,9 @@ them, from `npm run plan:facts`, which refuses any run older than the code.
   the SDK's own field, but `client.ts` runs hermetic (`settingSources: []`) and project
   skill discovery may depend on those sources. If it does, the prose is still doing all
   the work. One live run with a skill-specific probe settles it.
+- **The fault check tries one fault.** Every server response becomes a 500. A spec that
+  notices a 500 but not a wrong value passes it, and an API spec that builds absolute
+  URLs bypasses the fault and is reported untouched.
 - **Delegation has never fired.** A coder can call `test-planner`; none has.
 - **`maxStates` is enforced by nothing.** The per-call guard sees one tool call at a
   time and cannot tell a new page from a return to an old one. It needs the driver's

@@ -7,7 +7,8 @@ import { dirname, join } from 'node:path';
  * Resolved the way an import is — by walking up from this module through parent
  * folders — never from the working directory. Paths built as
  * `resolve('node_modules/…')` worked only while a command ran from the repository root.
- * Every path here was
+ * A role run's worktree has no `node_modules` of its own; the checkout's is linked
+ * beside the worktrees, and only a lookup that walks up finds it. Every path here was
  * checked to resolve from the checkout on 2026-09-14.
  */
 

@@ -459,7 +459,15 @@ export const HEURISTICS: readonly Heuristic[] = [
     name: 'The harness’s own tests can actually fail',
     mode: 'scripted',
     by: 'npm run mutate',
-    why: 'mutation testing over the harness’s rules — it never touches a spec under apps/',
+    why: 'mutation testing over the harness’s rules — it never touches a spec under apps/, which is what spec-notices-fault is for',
+  },
+  {
+    id: 'spec-notices-fault',
+    skill: 'pwtest',
+    name: 'An app spec notices its server going wrong',
+    mode: 'scripted',
+    by: 'npm run fault-check',
+    why: 'the spec reruns with every server response a 500 and must fail; the post-run gate runs it on every app spec a coder changes',
   },
   {
     id: 'learn-behaviour-first',

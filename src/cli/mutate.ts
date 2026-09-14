@@ -636,6 +636,33 @@ const MUTATIONS: Mutation[] = [
     replace: '    if (seen.size < 0) return false;',
     breaks: 'A case shared by two controls must be printed once',
   },
+  {
+    file: 'src/qe/fault.ts',
+    find: "        else outcome = corrupted > 0 ? 'survived' : 'untouched';",
+    replace: "        else outcome = 'untouched';",
+    breaks: 'A spec that passes over corrupted server responses must be refused',
+  },
+  {
+    file: 'src/qe/fault.ts',
+    find: "        else if (status !== 'passed') outcome = corrupted > 0 ? 'caught' : 'inconclusive';",
+    replace: "        else if (status !== 'passed') outcome = 'caught';",
+    breaks: 'A failure the fault did not cause must not count as caught',
+  },
+  {
+    // Caught only by the integration test, which runs the probe spec under the fault.
+    file: 'src/fixtures/harness.ts',
+    find: '        if (!corruptible(route.request().resourceType())) return route.continue();',
+    replace: '        return route.continue();',
+    breaks: 'Under the fault a page’s calls to its server must be corrupted',
+  },
+  {
+    // Uncounted, every failure under the fault reads as inconclusive and the check
+    // refuses an API spec that did notice.
+    file: 'src/fixtures/api.ts',
+    find: '      corrupted += 1;\n      response.writeHead',
+    replace: '      response.writeHead',
+    breaks: 'Under the fault an API spec’s corrupted calls must be counted',
+  },
 ];
 
 /**

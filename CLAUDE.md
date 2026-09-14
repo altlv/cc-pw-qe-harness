@@ -18,6 +18,7 @@ QA/QE work.
 | Agent roles — coding family and testing family | defined, not yet driven            | `src/agents/roles.ts`       |
 | Self-healing selectors                         | built                              | `src/tools/heal.ts`         |
 | Test ideas from a scan, heuristics catalogue   | built, not yet used by an agent    | `src/qe/test-ideas.ts`      |
+| Fault check — does a spec notice a 500         | built                              | `src/cli/fault-check.ts`    |
 
 Do not add placeholder modules for the planned items. Build one end to end when it
 is wanted.
@@ -90,6 +91,7 @@ npm run gate              # PASS / CONDITIONAL / FAIL verdict
 npm run scan -- <url>     # page scan + testability audit
 npm run check-report      # validate QA reports against docs/report-format.md
 npm run triage -- <file>  # triage a failure JSON (needs API key)
+npm run fault-check -- <spec>   # does a spec notice its server failing
 npm run ideas -- <scan.json>    # test cases a saved scan supports
 npm run precommit         # housekeeping before handing over a commit
 ```

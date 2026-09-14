@@ -47,7 +47,14 @@ export default defineConfig({
     [
       'json',
       {
-        outputFile: includeExternal ? 'artifacts/results-external.json' : 'artifacts/results.json',
+        // A fault run is a third file for the same reason: its failures are the point,
+        // and read as the local suite they would turn the gate red.
+        outputFile:
+          process.env.HARNESS_FAULT === '1'
+            ? 'artifacts/results-fault.json'
+            : includeExternal
+              ? 'artifacts/results-external.json'
+              : 'artifacts/results.json',
       },
     ],
   ],
@@ -99,6 +106,9 @@ export default defineConfig({
     {
       name: 'harness',
       testDir: './tests/harness',
+      // The fault-check probe exists to be judged under the fault. In any other run it
+      // would only be skipped, and a skipped test turns the release gate CONDITIONAL.
+      ...(process.env.HARNESS_FAULT === '1' ? {} : { testIgnore: '**/fault-probe.ui.spec.ts' }),
       use: { ...devices['Desktop Chrome'], baseURL: defaultTarget(harnessApp).baseURL },
     },
   ],
