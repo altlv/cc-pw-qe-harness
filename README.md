@@ -262,8 +262,11 @@ schema, the selector ladder and the anti-pattern list.
 ## CI
 
 GitHub Actions on push and PR. `verify` needs no secrets: format, lint, typecheck,
-quality gate, Playwright, release gate. Agent checks are a separate job so a fork
-PR without `ANTHROPIC_API_KEY` skips rather than fails.
+quality gate, Playwright, release gate. Agent checks are a separate job that
+authenticates with a Claude subscription token (`CLAUDE_CODE_OAUTH_TOKEN`, created with
+`claude setup-token`). It does not run for pull requests from forks, which get no
+secrets; a run without the token skips the smoke with a warning rather than passing
+silently.
 
 ## Stack
 
