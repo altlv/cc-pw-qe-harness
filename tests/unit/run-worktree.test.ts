@@ -1,0 +1,59 @@
+import { test, expect } from '@playwright/test';
+import { join, resolve } from 'node:path';
+import { insideDir, lockfilesMatch, runsRoot, worktreePath } from '../../src/qe/run-worktree.js';
+
+/**
+ * The pure half of worktree isolation: where runs live, what counts as inside one, and
+ * when linked modules can be trusted. The git half is tested against a throwaway
+ * repository in tests/integration/run-worktree.int.test.ts.
+ */
+
+const repo = resolve('/work/cc-pw-qe-harness');
+
+test.describe('where run worktrees live', () => {
+  test('should put runs beside the repository, never inside it', () => {
+    const root = runsRoot(repo);
+    expect(
+      insideDir(root, repo),
+      'a worktree inside the repo is seen by its lint, format, tests and git status',
+    ).toBe(false);
+    expect(root).toBe(resolve('/work/cc-pw-qe-harness-runs'));
+    expect(worktreePath(repo, 'e2e-coder-1')).toBe(join(root, 'e2e-coder-1'));
+  });
+});
+
+test.describe('what counts as inside a worktree', () => {
+  const worktree = resolve('/work/cc-pw-qe-harness-runs/e2e-coder-1');
+
+  test('should accept a path inside it, relative or absolute', () => {
+    expect(insideDir('apps/todo-fixture/tests/a.spec.ts', worktree)).toBe(true);
+    expect(insideDir(join(worktree, 'src', 'x.ts'), worktree)).toBe(true);
+    expect(insideDir(worktree, worktree)).toBe(true);
+  });
+
+  test('should refuse a path that climbs or points out of it', () => {
+    expect(
+      insideDir('../../cc-pw-qe-harness/src/cli/role.ts', worktree),
+      'an edit to the main checkout from inside a run is the shared state this removes',
+    ).toBe(false);
+    expect(insideDir(join(repo, 'src', 'cli', 'role.ts'), worktree)).toBe(false);
+    expect(
+      insideDir(resolve('/work/cc-pw-qe-harness-runs/e2e-coder-10/x.ts'), worktree),
+      'a sibling run with a similar name is not inside this one',
+    ).toBe(false);
+  });
+});
+
+test.describe('whether linked modules can be trusted', () => {
+  test('should match lockfiles that differ only in line endings', () => {
+    expect(lockfilesMatch('{\r\n  "a": 1\r\n}\r\n', '{\n  "a": 1\n}\n')).toBe(true);
+  });
+
+  test('should refuse a changed or missing lockfile', () => {
+    expect(
+      lockfilesMatch('{"a": 1}', '{"a": 2}'),
+      'modules installed for one lockfile do not serve code from another',
+    ).toBe(false);
+    expect(lockfilesMatch(null, '{}')).toBe(false);
+  });
+});

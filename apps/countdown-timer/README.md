@@ -42,6 +42,19 @@ tick by tick and fires every scheduled timeout.
 `page.clock.install()` must run before `page.goto()`, or the app captures the real
 clock first.
 
+## Failures not yet explained
+
+On 2026-09-14 one `npm run test:external`, run straight after the full local suite,
+failed three of the six tests: _hold the remaining time while stopped_, _resume from
+the held value_, and _keep running when reset mid-countdown_. All three read the
+display after `stop` or `reset` and a `clock.runFor`.
+
+Re-run the same day, none failed in 90 runs: 30 with default workers, 30 on one worker,
+30 beside a concurrent `npm test` — and the full verification run afterwards passed all
+six. **Not called flaky.** That word needs a cause and a
+rate measured under the conditions that failed, and there is neither yet. The next
+failure should be kept with its trace, not re-run until green.
+
 ## Testability
 
 Audited 2026-09-10 by the `testability-reviewer` role; every claim below was verified

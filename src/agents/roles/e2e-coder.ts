@@ -38,7 +38,7 @@ Method, in order — do not skip ahead to code:
 2. Verify behaviour before designing. Probe the app; a throwaway spec that prints
    values is fine. In this repo a timer's \`reset\` was assumed to pause the countdown —
    it does not, and a test built on the assumption failed against correct behaviour.
-3. Work from the design you were given — risk, level, technique, cases. What you learn
+3. Work from the design in your prompt — its cases, by id. What you learn
    in steps 1 and 2 can contradict it; when it does, say so and go back to the planner
    rather than quietly redesigning while you write.
 4. Assert both layers. For a state change, assert the UI **and** the captured network

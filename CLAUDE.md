@@ -8,17 +8,18 @@ test, and the skills in `.claude/skills/` before deciding _what_ to test.
 A harness pairing Claude (via `@anthropic-ai/claude-agent-sdk`) with Playwright for
 QA/QE work.
 
-| Capability                                     | Status                             | Entry point                 |
-| ---------------------------------------------- | ---------------------------------- | --------------------------- |
-| Network capture                                | built                              | `src/capture/network.ts`    |
-| Page scanner + testability audit               | built                              | `src/tools/page-scanner.ts` |
-| Test quality gate                              | built                              | `src/quality/assertions.ts` |
-| Release gate verdict                           | built                              | `src/qe/gate.ts`            |
-| Failure triage agent                           | built, unverified against live API | `src/agents/triage.ts`      |
-| Agent roles — coding family and testing family | defined, not yet driven            | `src/agents/roles.ts`       |
-| Self-healing selectors                         | built                              | `src/tools/heal.ts`         |
-| Test ideas from a scan, heuristics catalogue   | built, not yet used by an agent    | `src/qe/test-ideas.ts`      |
-| Fault check — does a spec notice a 500         | built                              | `src/cli/fault-check.ts`    |
+| Capability                                      | Status                             | Entry point                 |
+| ----------------------------------------------- | ---------------------------------- | --------------------------- |
+| Network capture                                 | built                              | `src/capture/network.ts`    |
+| Page scanner + testability audit                | built                              | `src/tools/page-scanner.ts` |
+| Test quality gate                               | built                              | `src/quality/assertions.ts` |
+| Release gate verdict                            | built                              | `src/qe/gate.ts`            |
+| Failure triage agent                            | built, unverified against live API | `src/agents/triage.ts`      |
+| Agent roles — coding family and testing family  | defined, not yet driven            | `src/agents/roles.ts`       |
+| Self-healing selectors                          | built                              | `src/tools/heal.ts`         |
+| Test ideas from a scan, heuristics catalogue    | built, not yet used by an agent    | `src/qe/test-ideas.ts`      |
+| Role runner — preflight, guards, worktree, gate | built, not yet driven by an agent  | `src/cli/role.ts`           |
+| Fault check — does a spec notice a 500          | built                              | `src/cli/fault-check.ts`    |
 
 Do not add placeholder modules for the planned items. Build one end to end when it
 is wanted.
@@ -67,7 +68,7 @@ src/capture/       Network recorder — the evidence layer
 src/fixtures/      harness.ts for UI specs, api.ts for API specs
 src/pages/         BasePage — no assertions in page objects
 src/quality/       Static analysis gating generated tests
-src/qe/            Verdict schema and release gate
+src/qe/            Verdicts and gates; a run's preflight, guards, worktree and lock
 src/tools/         Page scanner
 tests/harness/     Tests of the harness itself
 .claude/skills/    Test design, risk, exploratory sessions, oracles, defect reporting
@@ -91,6 +92,8 @@ npm run gate              # PASS / CONDITIONAL / FAIL verdict
 npm run scan -- <url>     # page scan + testability audit
 npm run check-report      # validate QA reports against docs/report-format.md
 npm run triage -- <file>  # triage a failure JSON (needs API key)
+npm run role -- <role> "<task>" --app <app> --env <env> [--preflight]
+                          # run a role in its own worktree — docs/agent-workflows.md
 npm run fault-check -- <spec>   # does a spec notice its server failing
 npm run ideas -- <scan.json>    # test cases a saved scan supports
 npm run precommit         # housekeeping before handing over a commit
@@ -108,3 +111,5 @@ npm run precommit         # housekeeping before handing over a commit
 - `page.clock.runFor()`, not `fastForward()`, for apps that reschedule with
   recursive `setTimeout`. `fastForward` fires each pending timer once.
 - App servers under `apps/*/app/` are plain JavaScript, not TypeScript.
+- Spawn a tool through `src/tool-paths.ts`, never `node_modules/...` relative to the
+  working directory — a role's gate runs inside a worktree, which has none of its own.

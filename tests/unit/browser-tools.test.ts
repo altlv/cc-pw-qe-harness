@@ -195,6 +195,17 @@ test.describe('the browser config binds where it may go', () => {
     ).toContain('--allowed-origins https://example.com');
   });
 
+  test('should allow exactly the app’s extra hosts beside its own origin', () => {
+    const { args } = browserMcpConfig(policyFor('prod'), [
+      'https://shop.example',
+      'https://auth.example.com',
+    ]);
+    expect(
+      args.join(' '),
+      'an app whose login lives on another host could not be tested at all without it',
+    ).toContain('--allowed-origins https://shop.example;https://auth.example.com');
+  });
+
   test('should not confine it when the policy allows leaving', () => {
     const { args } = browserMcpConfig(
       policyFor('local', { stayOnOrigin: false }),

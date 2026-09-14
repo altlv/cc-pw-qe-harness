@@ -35,6 +35,20 @@ export const findingSchema = z.object({
   basis: z.string().optional(),
 });
 
+/**
+ * One case in a test design. A coder implements cases by id, and a spec or report cites
+ * the id, so the chain from design to code can be checked rather than asserted.
+ */
+export const caseSchema = z.object({
+  id: z.string().min(1),
+  level: z.enum(['unit', 'integration', 'api', 'e2e', 'exploratory']),
+  /** The technique that produced the case: boundary values, decision table, sequence probe… */
+  technique: z.string().min(3),
+  summary: z.string().min(10),
+  /** The `npm run ideas` heuristic id, when the case was generated rather than derived. */
+  heuristic: z.string().optional(),
+});
+
 export const reportSchema = z.object({
   report: z.enum([
     'test-design',
@@ -56,6 +70,13 @@ export const reportSchema = z.object({
   not_covered: z.array(z.string()),
   /** Checks that were expected but did not run. Silence about a skipped check reads as a pass. */
   not_run: z.array(z.string()).default([]),
+  /** The cases a `test-design` report hands to a coder. Required there, ignored elsewhere. */
+  cases: z.array(caseSchema).default([]),
+  /**
+   * The commit a design was written against. A run started from it warns when the
+   * app's files have changed since, because a design can outlive the code it describes.
+   */
+  commit: z.string().optional(),
 });
 
 export type Report = z.infer<typeof reportSchema>;
@@ -147,6 +168,14 @@ export function auditReport(report: Report): ReportProblem[] {
     problems.push({
       level: 'warning',
       message: 'not_covered is empty — that claims complete coverage. State the scope limits.',
+    });
+  }
+
+  if (report.report === 'test-design' && report.cases.length === 0) {
+    problems.push({
+      level: 'error',
+      message:
+        'A test design lists no cases, so it hands a coder nothing to implement. Add cases with id, level, technique and summary.',
     });
   }
 

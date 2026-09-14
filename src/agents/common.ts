@@ -88,14 +88,20 @@ not run it, say so in \`not_run\` rather than estimating.
  * without widening back out.
  */
 const DELEGATION = `
-If you were handed no test design — no risks, no levels, no cases — do not invent one
-while writing code. Call the planner: the \`Agent\` tool with subagent_type
-"test-planner" and the question you actually have. Design is a separate job so that it
-can be argued with before code makes it expensive.
+A test design given for this run arrives in the prompt under "# Design for this run".
+The runner does not start an e2e or api coder without one. Implement its cases by id
+and cite the ids in your report. Design is a separate job so that it can be argued with
+before code makes it expensive — do not redesign while you write.
 
-Delegate for a named gap, never for the whole task. One call, one question, then carry
-on with what comes back. If you are reaching for a second call on the same spec, the
-scope you were given is wrong — say so rather than delegating around it.
+When you find a gap the design did not anticipate, do not invent a case. Call the
+planner: the \`Agent\` tool with subagent_type "test-planner" and the question you
+actually have. One call, one question, then carry on with what comes back. If you are
+reaching for a second call on the same spec, the design is wrong — say so in your
+report rather than delegating around it.
+
+When you finish, the runner re-checks your work: assert-quality on the specs you
+changed, a run of those specs, a fault check on every app spec you changed, and your
+report. Your own statement that checks passed does not decide the verdict.
 `.trim();
 
 const TEST_LEVELS = `

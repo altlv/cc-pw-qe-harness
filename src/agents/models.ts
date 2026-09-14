@@ -74,15 +74,25 @@ export function resolveModel(raw: string | undefined = process.env.HARNESS_MODEL
   };
 }
 
-/** What a role declaring `declaredTurns` may spend on this tier. */
+/**
+ * What a role may spend on this tier.
+ *
+ * Wall clock is the role's own declaration and is **not** scaled by tier. Most of a
+ * run's time is spent in the tools it calls — a scan, a test run, the post-run gate —
+ * and none of them runs faster on a stronger model. Every role used to share one
+ * 180-second limit, while the coder method alone asked for a scan, a test run and a
+ * mutation run.
+ */
 export function budgetForTier(
   tier: ModelTier,
   declaredTurns: number,
   baseUsd: number,
-): { maxTurns: number; maxUsd: number } {
+  declaredSeconds = 180,
+): { maxTurns: number; maxUsd: number; timeoutMs: number } {
   const multiplier = TIER_BUDGET[tier];
   return {
     maxTurns: Math.ceil(declaredTurns * multiplier.turns),
     maxUsd: Number((baseUsd * multiplier.usd).toFixed(2)),
+    timeoutMs: declaredSeconds * 1000,
   };
 }

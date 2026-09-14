@@ -49,12 +49,15 @@ export default defineConfig({
       {
         // A fault run is a third file for the same reason: its failures are the point,
         // and read as the local suite they would turn the gate red.
+        // A role run's gate names its own file, so re-running a coder's specs never
+        // replaces the results the release gate and plan:facts read.
         outputFile:
-          process.env.HARNESS_FAULT === '1'
+          process.env.HARNESS_RESULTS_FILE ??
+          (process.env.HARNESS_FAULT === '1'
             ? 'artifacts/results-fault.json'
             : includeExternal
               ? 'artifacts/results-external.json'
-              : 'artifacts/results.json',
+              : 'artifacts/results.json'),
       },
     ],
   ],

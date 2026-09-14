@@ -31,18 +31,41 @@ export interface Target {
   policy: ExplorationPolicy;
 }
 
+/**
+ * The port a harness-started server was given for this run, through the variable its
+ * config names — or undefined, and the configured port stands.
+ */
+function runPort(config: AppEnvironment): number | undefined {
+  const name = config.webServer?.portEnv;
+  const port = Number(name === undefined ? undefined : process.env[name]);
+  return Number.isInteger(port) && port > 0 ? port : undefined;
+}
+
+function withPort(baseURL: string, port: number): string {
+  const url = new URL(baseURL);
+  url.port = String(port);
+  return url.toString().replace(/\/$/, '');
+}
+
 /** Every app/environment pair, in registry order. */
 export function targets(): Target[] {
   return apps.flatMap((app) =>
     (Object.entries(app.environments) as [Environment, AppEnvironment][]).map(
-      ([environment, config]) => ({
-        app,
-        environment,
-        baseURL: config.baseURL,
-        ...(config.webServer !== undefined ? { webServer: config.webServer } : {}),
-        ...(config.note !== undefined ? { note: config.note } : {}),
-        policy: policyFor(environment),
-      }),
+      ([environment, config]) => {
+        const port = runPort(config);
+        return {
+          app,
+          environment,
+          // The base URL follows a run's port, so the server, the browser and the specs
+          // all agree on where it is.
+          baseURL: port === undefined ? config.baseURL : withPort(config.baseURL, port),
+          ...(config.webServer !== undefined
+            ? { webServer: port === undefined ? config.webServer : { ...config.webServer, port } }
+            : {}),
+          ...(config.note !== undefined ? { note: config.note } : {}),
+          policy: policyFor(environment),
+        };
+      },
     ),
   );
 }
@@ -176,6 +199,9 @@ export function formatTargets(): string {
     lines.push(`${app.name}  (${owner})`);
     lines.push(`  ${app.description}`);
     if (app.sourceRepo !== undefined) lines.push(`  source: ${app.sourceRepo}`);
+    if ((app.extraHosts ?? []).length > 0) {
+      lines.push(`  extra hosts a run may reach: ${(app.extraHosts ?? []).join(', ')}`);
+    }
 
     for (const target of targets().filter((entry) => entry.app.name === app.name)) {
       const permits = [

@@ -43,6 +43,13 @@ not_covered:
   - Mobile viewports — desktop Chrome only.
 not_run:
   - npm run test:external — third-party site was unreachable.
+commit: 6e03534 # test-design only — the commit it was written against, for the staleness warning
+cases: # test-design only, and required there
+  - id: C1
+    level: api # unit | integration | api | e2e | exploratory
+    technique: boundary values
+    summary: A title at the maximum length is stored whole.
+    heuristic: boundary-length # optional — the npm run ideas id it came from
 ---
 ```
 

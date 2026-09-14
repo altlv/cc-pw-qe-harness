@@ -243,7 +243,7 @@ export type SnapshotMode = 'full' | 'none';
  */
 export function browserMcpConfig(
   policy: ExplorationPolicy,
-  origin: string,
+  origins: string | readonly string[],
   outputDir = 'artifacts/browser',
   snapshots: SnapshotMode = 'full',
 ): { command: string; args: string[] } {
@@ -259,15 +259,16 @@ export function browserMcpConfig(
       outputDir,
       '--snapshot-mode',
       snapshots,
-      // Semicolon-separated, per the CLI's own `--allowed-origins` documentation.
-      ...(policy.stayOnOrigin ? ['--allowed-origins', origin] : []),
+      // Semicolon-separated, per the CLI's own `--allowed-origins` documentation. More
+      // than one only when the app's config lists extra hosts.
+      ...(policy.stayOnOrigin ? ['--allowed-origins', [origins].flat().join(';')] : []),
     ],
   };
 }
 
 /**
  * Resolved by walking up from this module, never from the working directory — the same
- * reason `src/env.ts` is anchored.
+ * reason `src/env.ts` is anchored, and the lookup that also works from a run worktree.
  */
 function mcpCliPath(): string {
   return PLAYWRIGHT_MCP_CLI;

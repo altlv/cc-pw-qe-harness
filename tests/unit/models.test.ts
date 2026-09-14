@@ -67,7 +67,24 @@ test.describe('tier budgets', () => {
       TIER_BUDGET.sonnet.turns,
       'sonnet is the baseline every role budget is written against; scaling it changes what every declaration means',
     ).toBe(1);
-    expect(budgetForTier('sonnet', 30, 1)).toEqual({ maxTurns: 30, maxUsd: 1 });
+    expect(budgetForTier('sonnet', 30, 1, 600)).toEqual({
+      maxTurns: 30,
+      maxUsd: 1,
+      timeoutMs: 600_000,
+    });
+  });
+
+  test('should give a role the wall clock it declares, whatever the tier', () => {
+    // Time goes to the tools a run calls, and a stronger model does not make a test
+    // run faster. Every role used to share one 180-second limit.
+    const seconds = [
+      budgetForTier('haiku', 20, 1, 900).timeoutMs,
+      budgetForTier('sonnet', 20, 1, 900).timeoutMs,
+      budgetForTier('opus', 20, 1, 900).timeoutMs,
+    ];
+    expect(seconds, 'wall clock is declared per role and must not move with the tier').toEqual([
+      900_000, 900_000, 900_000,
+    ]);
   });
 
   test('should give a weaker model more turns and a stronger one fewer', () => {

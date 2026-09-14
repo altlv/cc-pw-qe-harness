@@ -7,7 +7,11 @@ const config: AppConfig = {
   environments: {
     local: {
       baseURL: 'http://127.0.0.1:4173',
-      webServer: { command: 'node apps/todo-fixture/app/server.mjs', port: 4173 },
+      webServer: {
+        command: 'node apps/todo-fixture/app/server.mjs',
+        port: 4173,
+        portEnv: 'FIXTURE_PORT',
+      },
     },
   },
   defaultEnvironment: 'local',

@@ -28,10 +28,14 @@ export interface AgentRunOptions {
    */
   model?: string;
   /**
-   * Per-call permission check. The SDK documents it as fail-closed, which is the
-   * property that makes it usable as a safety boundary rather than a hint.
+   * Hooks, and in particular the `PreToolUse` guard every run is given.
+   *
+   * This replaced `canUseTool`. That is a permission handler, and runs here use
+   * `bypassPermissions`, which the SDK documents as "Bypass all permission checks" —
+   * so the handler may never have been consulted. A hook runs before a tool executes
+   * whatever the permission mode. See `src/qe/tool-hook.ts`.
    */
-  canUseTool?: Options['canUseTool'];
+  hooks?: Options['hooks'];
   cwd?: string;
 }
 
@@ -84,14 +88,18 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
       prompt: options.prompt,
       options: {
         model: options.model ?? model(),
-        canUseTool: options.canUseTool,
         systemPrompt: options.systemPrompt,
         maxTurns: budget.limits.maxTurns,
         allowedTools: options.allowedTools,
         mcpServers: options.mcpServers,
         agents: options.agents,
+        hooks: options.hooks,
         cwd: options.cwd,
+        // Permission prompts would stall an unattended run, so they are bypassed —
+        // the SDK requires saying so explicitly. What bounds a run is the tool
+        // allowlist and the PreToolUse guard, never a prompt nobody is there to answer.
         permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
         settingSources: [],
         abortController: budget.controller,
       },

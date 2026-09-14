@@ -20,6 +20,7 @@ function report(over: Partial<Report> = {}): Report {
     ],
     not_covered: ['mobile'],
     not_run: [],
+    cases: [],
     ...over,
   };
 }

@@ -131,6 +131,7 @@ npm run check
 
 `fault-check` reruns the spec with every server response a 500. A spec that still
 passes asserts nothing the server decides — go back to Step 6 and assert the outcome.
+When run through `npm run role`, the runner does all three again after you finish.
 
 Then report:
 

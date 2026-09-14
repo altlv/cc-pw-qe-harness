@@ -169,4 +169,45 @@ test.describe('what may be quoted', () => {
       'the plan quotes the external count too, so it must have been run',
     ).toContain('test:external');
   });
+
+  test('should put failures beside the pass count, not after the last project', () => {
+    const { lines } = formatFacts(
+      input({
+        external: {
+          counts: countByProject(
+            report([
+              { projectName: 'countdown-timer', status: 'unexpected' },
+              { projectName: 'fakerestapi', status: 'expected' },
+            ]),
+          ),
+          freshness: fresh,
+        },
+      }),
+    );
+    expect(
+      lines.join('\n'),
+      '"fakerestapi 1 (1 failing)" blamed fakerestapi for a countdown-timer failure',
+    ).toContain('**1 passed** (1 failing) — countdown-timer 1, fakerestapi 1');
+  });
+
+  test('should refuse when external tests are failing', () => {
+    // Seen on 2026-09-14: 19 passed and 3 failed, and the tool said nothing about the 3.
+    const { problems } = formatFacts(
+      input({
+        external: {
+          counts: countByProject(
+            report([
+              { projectName: 'countdown-timer', status: 'expected' },
+              { projectName: 'countdown-timer', status: 'unexpected' },
+            ]),
+          ),
+          freshness: fresh,
+        },
+      }),
+    );
+    expect(
+      problems.join(' '),
+      'a pass count quoted beside failures it leaves out is a selective number',
+    ).toContain('1 external test(s) failing');
+  });
 });

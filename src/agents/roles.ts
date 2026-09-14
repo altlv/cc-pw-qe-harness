@@ -89,6 +89,28 @@ export const BROWSER_ACCESS: Record<string, BrowserAccess> = {
   'failure-investigator': 'full',
 };
 
+/**
+ * How long each role's run may take, in seconds, before the runner stops it.
+ *
+ * Every role shared one 180-second limit, fixed in `budget.ts` and scaled by nothing,
+ * while the coder method asked for a scan, a test run and a mutation run inside it.
+ * These are **estimates, not measurements** — no role has run long enough to observe a
+ * median. The shape is the claim: exploring and localising take longest, a planner
+ * that only reads and writes one file takes least. Replace them with observed figures.
+ *
+ * The post-run gate runs after this clock stops, so it is not counted here.
+ */
+export const WALL_CLOCK_SECONDS: Record<string, number> = {
+  'unit-coder': 600,
+  'integration-coder': 900,
+  'api-coder': 900,
+  'e2e-coder': 1200,
+  'testability-reviewer': 600,
+  'test-planner': 600,
+  'exploratory-tester': 1800,
+  'failure-investigator': 1200,
+};
+
 /** Role names in one family, in the order the index declares them. */
 export function rolesIn(family: RoleFamily): string[] {
   return Object.keys(roles).filter((name) => families[name] === family);

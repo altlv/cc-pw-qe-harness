@@ -8,8 +8,14 @@ export type { Environment };
  */
 export interface AppEnvironment {
   baseURL: string;
-  /** Set when the harness starts this deployment itself. Only ever `local`. */
-  webServer?: { command: string; port: number };
+  /**
+   * Set when the harness starts this deployment itself. Only ever `local`.
+   *
+   * `portEnv` names the environment variable the server reads its port from. A role run
+   * sets it to a free port, and the target's base URL follows, so a run never meets a
+   * server left behind by another.
+   */
+  webServer?: { command: string; port: number; portEnv?: string };
   /** How to reach it, when it is not simply running. Shown by `npm run targets`. */
   note?: string;
 }
@@ -58,4 +64,12 @@ export interface AppConfig {
   external?: boolean;
   /** Where the app itself lives, when it is not in this repo. */
   sourceRepo?: string;
+  /**
+   * Hosts a run against this app may reach beyond its base URL — an auth provider, a
+   * separate API. The allowlist a role run's browser and shell guard both honour.
+   *
+   * Here, and nowhere else, so widening is a reviewed commit rather than a flag someone
+   * adds to one run, and never something an agent can do for itself mid-run.
+   */
+  extraHosts?: string[];
 }

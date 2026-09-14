@@ -113,7 +113,7 @@ export function formatFacts(input: FactsInput): { lines: string[]; problems: str
   } else {
     const passed = local.counts.total - local.counts.failing - local.counts.skipped;
     lines.push(
-      `- \`npm test\` **${passed} passed** — ${breakdown(local.counts)}${caveats(local.counts)}`,
+      `- \`npm test\` **${passed} passed**${caveats(local.counts)} — ${breakdown(local.counts)}`,
     );
     if (local.freshness.state !== 'fresh') {
       problems.push('local results predate the code — run `npm test` again');
@@ -131,12 +131,22 @@ export function formatFacts(input: FactsInput): { lines: string[]; problems: str
     problems.push('no external results — run `npm run test:external`');
   } else {
     const passed = external.counts.total - external.counts.failing - external.counts.skipped;
+    // The caveats sit beside the pass count they qualify. After the breakdown they read
+    // as belonging to its last project: "fakerestapi 16 (3 failing)" when all three
+    // failures were countdown-timer's.
     lines.push(
-      `- \`npm run test:external\` **${passed} passed** — ${breakdown(external.counts)}` +
-        caveats(external.counts),
+      `- \`npm run test:external\` **${passed} passed**${caveats(external.counts)} — ${breakdown(external.counts)}`,
     );
     if (external.freshness.state !== 'fresh') {
       problems.push('external results predate the code — run `npm run test:external` again');
+    }
+    // A plan that quotes "19 passed" beside three failures it never mentions is quoting
+    // selectively. Third-party sites fail for reasons that are not ours, but that is a
+    // cause to establish and write down, not a reason to quote around the failures.
+    if (external.counts.failing > 0) {
+      problems.push(
+        `${external.counts.failing} external test(s) failing — establish the cause and record it before quoting`,
+      );
     }
   }
 

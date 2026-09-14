@@ -28,6 +28,29 @@ collides with an existing one.
   number instead. `docs/conventions.md` carries the rule and the reasoning.
 - **Every test must prove something** — expectations met or failed, and if failed, why.
   Enforced, not aspirational: `npm run assert-quality`.
+- **A repeating pattern means a tool is missing.** When agents or specs keep deriving
+  or retyping the same thing, build the helper, generator or command instead. And
+  "scripting a heuristic" means two things: something produces the work, and a gate
+  checks written tests honour it. Advice with no gate gets skipped. (User, 2026-09-14.)
+- **Draw the flow before concluding how it works.** Before deciding how a flow or set of
+  calls behaves — or how it should — sketch it and check the picture for pointers
+  nothing follows, steps nothing enforces, and loops that never close. On 2026-09-14
+  drawing the coder flow exposed six flaws that reading the files one at a time had
+  not, and drawing the desired flow found six more gaps before anything was written.
+  `docs/agent-workflows.md` came out of those drawings. (User, 2026-09-14.)
+- **Principles before mechanisms; a string of patches means a broken principle.** The
+  flow will change; its principles (`docs/agent-workflows.md`, top) must not. Judge a
+  proposal — ours or an outside review's — against them rather than agreeing with it.
+  On 2026-09-14 two reviews produced a lock, change detection, edit tracking, separate
+  result folders and a port check, each fixing one symptom of runs sharing a checkout;
+  a worktree per run removed the cause and made most of them unnecessary. (User,
+  2026-09-14: "evaluate and suggest an even better flow".)
+- **Role restrictions limit activity, not knowledge.** A unit-coder does not go
+  exploring end to end, but every heuristic is available to both families, because
+  whoever writes a test must make its assertions good enough. Judging a finished test
+  is reviewer work; good assertions inside the tests we write are expected of everyone.
+  A guard that conflicts with this may change, with the user deciding. (User,
+  2026-09-14.)
 - **Extending the harness has its own bar:** `docs/definition-of-done.md`. Ten items,
   each earned by a real failure here.
 - **Three outputs, three readers, in this order.** The **map** says how large the play
@@ -60,6 +83,14 @@ heuristics are separate tools that also support it. All are needed.
 ## Traps found the hard way
 
 Curated, not appended. Delete anything that stops being true.
+
+- **A guard is only proven by a refusal it made in a live run.** The browser guard was
+  wired as `canUseTool`, a permission handler, and listed as proven. Every run uses
+  `bypassPermissions`, which the SDK's own types describe as "Bypass all permission
+  checks" — so the handler may never have been consulted. Nobody had read that line
+  because the unit tests of the guard's logic were green. On 2026-09-14 every guard
+  moved to one `PreToolUse` hook; which path the SDK actually calls is still to be
+  seen in a run that tries a refused command. Test the logic, then watch it refuse.
 
 - **`PLAN.md` must be accurate, not regenerated.** The old rule was "regenerate, never
   hand-patch", and it failed both ways: patches accumulated anyway because a full
@@ -100,7 +131,10 @@ Curated, not appended. Delete anything that stops being true.
   taken and went unnoticed for four sessions.
 - **A detector that cries wolf is worse than none.** Several of ours have. Run a new
   rule against a known-good page and confirm silence, not only against the case you
-  built it for.
+  built it for. Generators too: synthetic fixtures agree with their author. The first
+  real run of `npm run ideas` offered an analytics beacon as the read that proves a
+  login, and tagged login probes to run on shared environments. Both had passed every
+  unit test written against hand-made scans.
 - **Measure in the state the action actually happens in.** The occlusion check
   hit-tested elements where they sat, but Playwright scrolls before clicking, so it
   was answering about a moment that never occurs. Right question, wrong instant.
@@ -117,7 +151,11 @@ Curated, not appended. Delete anything that stops being true.
   Three ways it happens, all seen here: the mutation removes something a later line
   still does; its only test calls the pure function directly instead of the real path;
   or it targets a branch nothing reaches. Confirm a new mutation fails for the right
-  reason before trusting the score.
+  reason before trusting the score. The reverse is the useful one: a survivor is often
+  a test whose input makes the rule redundant. "Never hand a password field probe
+  values" survived because the test's password field declared no length or pattern,
+  so nothing would have generated values for it anyway. Give the test the input under
+  which the rule is the only thing standing in the way.
 - **A mutation score is over the mutations that ran.** Anchors rot when code is
   refactored, and a skipped mutation used to print a line nobody read at the top of a
   five-minute run — two rules were silently unchecked that way while the score said
@@ -143,7 +181,12 @@ Curated, not appended. Delete anything that stops being true.
   2026-09-11 and twice more on 2026-09-13 — every one of those seven after this line
   was already written, and two of them minutes after re-reading it. Reading the
   warning does not work. Use the editing tools, or write a real `.py`/`.mjs` file and
-  run that.
+  run that. It is not only heredocs: on 2026-09-14 a `sed` replacement meant to write
+  the escape for a byte-order mark into a regex wrote `FEFF`, and the test for
+  frontmatter stripping was what noticed. Two edit-tool retries then wrote the
+  invisible character itself, which lint calls irregular whitespace. When an escape
+  keeps collapsing, stop writing it: compare the char code instead, as `parseReport`
+  does, and check the bytes with `od -c`.
 - **A prompt is behaviour; test it like code.** A briefing that said "do not re-derive
   this from the page" three sentences after "begin with browser_navigate" made an
   agent rebuild a map it had already been given: 4 turns and $0.2613 against 1 turn
@@ -167,7 +210,14 @@ scan`, which costs no tokens and grades the selectors as well.
   a file you "touched" to test something is not actually modified. Check
   `git status --porcelain` rather than assuming.
 - **Do not share an output path between parallel tests**, and do not assert on the size
-  of a shared collection. Both have caused flakes here.
+  of a shared collection. Both have caused flakes here. A child process counts: a test
+  that spawns its own Playwright run clears the shared `test-results/` at startup and
+  deletes trace files the outer run is still writing. On 2026-09-14 that failed two
+  heal tests with `ENOENT … .trace` inside the mutation baseline, while `npm test` a
+  minute later passed on timing luck. A nested run gets its own `--output` and report
+  folder. The same day, hours after writing this, a countdown-timer run started beside
+  `npm test` to simulate load failed a heal test the same way. Two Playwright runs at
+  once share `test-results/` unless one is given its own `--output`.
 - **A run that writes nothing leaves the last run's results behind.** `--reporter=line`
   or `--reporter=json` on the CLI replaces the reporters configured in
   `playwright.config.ts`, so `results.json` is not written and still holds the previous
@@ -189,6 +239,28 @@ scan`, which costs no tokens and grades the selectors as well.
   fixture option and `test.use()`.
 - **A fixture's teardown runs after the test body.** A test cannot observe a file its
   own teardown will write; assert it from the next test, in serial mode.
+- **Importing a CLI module runs it.** A script meant to check mutation anchors imported
+  `src/cli/mutate.ts` for its list and started a full mutation run, rewriting source
+  files while it went. Every `src/cli/*.ts` does its work at the top level. To read what
+  one declares, parse the file — the TypeScript compiler API reads `MUTATIONS` without
+  executing anything.
+- **`git worktree remove` follows a link inside the worktree.** The first run worktrees
+  linked the checkout's `node_modules` inside themselves, and removing one deleted the
+  checkout's modules. Found in a throwaway repository before any commit. The link now
+  sits beside the worktrees, in the runs folder, where Node and `npx` still find it by
+  walking up. It is git's removal that follows the link: on 2026-09-14 `rm -rf`,
+  `rmdir`, Node's `fs.rmSync` and PowerShell's `Remove-Item -Recurse` each removed a
+  junction and left its target intact. Written first as "never a recursive delete"
+  before that was tested — it was wrong.
+- **A tool path relative to the working directory breaks the day a process runs
+  somewhere else.** `resolve('node_modules/…')` worked for months because every command
+  ran from the repository root, and failed the moment the gate ran in a worktree.
+  `src/tool-paths.ts` resolves each CLI the way an import does.
+- **A test of a command that can spend must stop before spending by construction.**
+  The SDK falls back to a Claude Code login when no key is set, so a refusal test whose
+  refusal failed to fire would have started a paid agent run. Every `role.ts` test
+  passes `--preflight`, which exits before the worktree and the agent. Never mutate that
+  exit.
 
 ## Credentials
 
@@ -221,6 +293,7 @@ authenticated session without an agent ever handling a secret. It is queue item 
 | Why a line of code exists     | a comment next to it, and the commit that added it |
 | Test conventions              | `docs/conventions.md`                              |
 | Bar for extending the harness | `docs/definition-of-done.md`                       |
+| How a role run works, and why | `docs/agent-workflows.md`                          |
 | Where an idea came from       | `docs/sources.md`, with what its licence allows    |
 | Which subjects exist and why  | `apps/README.md`                                   |
 

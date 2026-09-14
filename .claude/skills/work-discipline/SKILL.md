@@ -24,6 +24,13 @@ For each bounded item: **inspect → decide → change → verify → record.**
 Do not batch unrelated changes. Prefer a deterministic tool over inference — running
 the check beats reasoning about what the check would say.
 
+**Draw the flow before concluding how it works.** When the task is to understand,
+review or design a flow — a run lifecycle, a handoff between roles, a set of calls —
+sketch it first, then read the picture for pointers nothing follows, steps nothing
+enforces and loops that never close. A narrow file-by-file reading agrees with each
+file and misses the shape: drawing one coder flow exposed six structural flaws that
+reading its files had not. `docs/agent-workflows.md` was written this way.
+
 ## Truth rules
 
 Disk, command output, and test output are evidence. Conversation memory is not.

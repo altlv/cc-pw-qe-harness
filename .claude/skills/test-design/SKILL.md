@@ -126,9 +126,18 @@ echoes its input and persists nothing.
 
 ## Output
 
-Write the design to `apps/<app>/coverage.md`: the state or decision model, what is
-covered, and **what is deliberately not covered and why**. The "not covered" line is
-required — it is what distinguishes a considered gap from an oversight.
+Write the design to `apps/<app>/designs/<feature>.md` as a `report: test-design` in
+`docs/report-format.md`, with `cases` — one per case, each with an id, a level, a
+technique and a summary. That file is what a coder is started with (`--design`), and
+the runner refuses a design that lists no cases. Cases `npm run ideas` generated keep
+their `heuristic` id, so a coder implements them rather than deriving them again.
+Record the `commit` the design was written against (`git rev-parse --short HEAD`): a run
+started from the design warns when the app has changed since.
+
+The body carries the state or decision model and **what is deliberately not covered
+and why**. The "not covered" line is required — it is what distinguishes a considered
+gap from an oversight. `apps/<app>/coverage.md` stays the app-wide summary of what is
+covered across designs.
 
 ## Decision points
 
