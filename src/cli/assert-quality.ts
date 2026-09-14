@@ -1,15 +1,29 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { analyzeSpec, formatFindings } from '../quality/assertions.js';
 
-async function findSpecs(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
+const SPEC = /\.(spec|test)\.ts$/;
+
+/**
+ * Spec files under a directory, or the file itself when one is named. The post-run
+ * gate names the exact files a run changed; walking their directories instead would
+ * refuse a run for findings in specs it never touched.
+ */
+async function findSpecs(path: string): Promise<string[]> {
+  const info = await stat(path).catch(() => null);
+  if (info === null) {
+    console.error(`No such file or directory: ${path}`);
+    process.exit(2);
+  }
+  if (info.isFile()) return [path];
+
+  const entries = await readdir(path, { withFileTypes: true });
   const files = await Promise.all(
     entries.map(async (entry) => {
-      const full = join(dir, entry.name);
+      const full = join(path, entry.name);
       if (entry.isDirectory()) return findSpecs(full);
       // Unit and integration tests are held to the same standard as specs.
-      return /\.(spec|test)\.ts$/.test(entry.name) ? [full] : [];
+      return SPEC.test(entry.name) ? [full] : [];
     }),
   );
   return files.flat();

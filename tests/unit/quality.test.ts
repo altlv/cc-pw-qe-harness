@@ -182,3 +182,96 @@ test.describe('fixture strings are not analysed as code', () => {
     ).toContain('unmarked-fragile-selector');
   });
 });
+
+test.describe('a write must be verified, not only rendered', () => {
+  const uiWrite = (tag: string, check: string) =>
+    [
+      "import { test, expect } from '../../../src/fixtures/harness.js';",
+      `test.describe('todos', { tag: '${tag}' }, () => {`,
+      "  test('should add a todo', async ({ page, network }) => {",
+      "    await page.getByTestId('todo-submit').click();",
+      `    ${check}`,
+      "    await expect(page.getByTestId('todo-item'), 'the row did not render').toBeVisible();",
+      '  });',
+      '});',
+    ].join('\n');
+
+  test('should flag a writing UI test that asserts only the DOM', () => {
+    expect(
+      analyzeSpec(uiWrite('@writes', '')).map((f) => f.kind),
+      'an optimistic render looks the same over a 500 as over a 201',
+    ).toContain('write-unverified');
+  });
+
+  test('should accept a writing UI test that checks the call', () => {
+    const checked = uiWrite('@writes', "await network.waitForCall((c) => c.method === 'POST');");
+    expect(analyzeSpec(checked).map((f) => f.kind)).not.toContain('write-unverified');
+  });
+
+  test('should not hold a read-only UI test to the write rule', () => {
+    // A countdown timer's Start button changes nothing on any server.
+    expect(analyzeSpec(uiWrite('@read-only', '')).map((f) => f.kind)).not.toContain(
+      'write-unverified',
+    );
+  });
+
+  test('should read a tag declared on the test itself, and ignore one in a title', () => {
+    const onTest = [
+      "import { test, expect } from '../../../src/fixtures/harness.js';",
+      "test('should save', { tag: '@writes' }, async ({ page }) => {",
+      "  await page.getByTestId('save').click();",
+      "  await expect(page.getByText('Saved')).toBeVisible();",
+      '});',
+    ].join('\n');
+    expect(analyzeSpec(onTest).map((f) => f.kind)).toContain('write-unverified');
+
+    const inTitle = onTest
+      .replace("{ tag: '@writes' }, ", '')
+      .replace('should save', 'should save @writes');
+    expect(
+      analyzeSpec(inTitle).map((f) => f.kind),
+      'a title mentioning a tag is not a tag, and would make the rule fire on read-only tests',
+    ).not.toContain('write-unverified');
+  });
+
+  test('should inherit a tag from an enclosing describe', () => {
+    const nested = uiWrite('@writes', '')
+      .replace(
+        "  test('should add a todo'",
+        "  test.describe('inner', () => {\n  test('should add a todo'",
+      )
+      .replace('\n});', '\n});\n});');
+    expect(analyzeSpec(nested).map((f) => f.kind)).toContain('write-unverified');
+  });
+
+  const apiWrite = (status: number, after: string) =>
+    [
+      "import { test, expect } from '../../../src/fixtures/api.js';",
+      "test('should create a todo', async ({ api }) => {",
+      "  const response = await api.post('/api/todos', { data: { title: 'x' } });",
+      `  expect(response.status(), 'the create was not accepted').toBe(${status});`,
+      `  ${after}`,
+      '});',
+    ].join('\n');
+
+  test('should flag a successful API write that is never read back', () => {
+    expect(
+      analyzeSpec(apiWrite(201, '')).map((f) => f.kind),
+      'a 201 describes what the server said, not what it stored',
+    ).toContain('write-not-read-back');
+  });
+
+  test('should accept a successful write that is read back', () => {
+    const readBack = apiWrite(201, "expect((await api.get('/api/todos')).ok()).toBe(true);");
+    expect(analyzeSpec(readBack).map((f) => f.kind)).not.toContain('write-not-read-back');
+  });
+
+  test('should not demand a read-back after a rejected write', () => {
+    expect(analyzeSpec(apiWrite(422, '')).map((f) => f.kind)).not.toContain('write-not-read-back');
+  });
+
+  test('should accept a read-back that lives in a named sibling test', () => {
+    const marked = apiWrite(201, "// Read back in: 'should persist a created todo'");
+    expect(analyzeSpec(marked).map((f) => f.kind)).not.toContain('write-not-read-back');
+  });
+});

@@ -141,9 +141,22 @@ Three rules make this safe rather than dangerous:
 ### Test quality gate (`qe`)
 
 `npm run assert-quality` — deterministic, no API key. Fails on tests with no
-assertion, navigate-and-assert-once tests, unmarked fragile selectors, and banned
-waits. Generated suites drift toward tests that are green and worthless; this is
+assertion, navigate-and-assert-once tests, unmarked fragile selectors, banned waits,
+a writing UI test that checks only the DOM, and a successful API write that is never
+read back. Generated suites drift toward tests that are green and worthless; this is
 the floor.
+
+### Test ideas from a scan (`qe`)
+
+`npm run ideas -- <scan.json>` — deterministic, no API key. Reads a saved scan and
+prints the cases it supports: boundary values for declared ranges and lengths, probe
+sets per field type, the write sequence for every submit (negative set, double submit,
+back after submit, read-back), selection and repeat-transition cases, and the effect
+tag each should carry. It says what the scan could not support, which gates the spec
+will face, and the judgement still left to the author. Values come from
+`src/fixtures/probes.ts`, which specs import rather than retype.
+`npm run ideas -- --catalogue` lists every heuristic in `src/qe/heuristics.ts` by
+what does the work: scripted, generated, scriptable, or judgement.
 
 ### Release gate (`qe`)
 
@@ -201,22 +214,23 @@ turns on whether anything is _wrong_ rather than on discovering what is there.
 
 ## Commands
 
-| Command                           | Does                                                                                                                                         |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm test`                        | Local subjects + harness self-tests (unit, integration, api, e2e)                                                                            |
-| `npm run test:external`           | Third-party subjects, opt-in                                                                                                                 |
-| `npm run check`                   | format + lint + typecheck                                                                                                                    |
-| `npm run assert-quality`          | Test quality gate                                                                                                                            |
-| `npm run gate`                    | Release verdict, refusing stale results                                                                                                      |
-| `npm run mutate`                  | Breaks each enforced rule deliberately and checks the suite notices                                                                          |
-| `npm run precommit`               | Housekeeping before a commit: dead commands and paths in docs, undocumented capability, stale `PLAN.md`, plus the drift no scanner can catch |
-| `npm run plan:facts`              | The numbers `PLAN.md` quotes, read from the runs that produced them — refuses any that predate the code                                      |
-| `npm run scan -- <url>`           | Page scan + testability audit (`SCAN_DEEP=1` also probes hover, keyboard, responsive, scroll and zoom)                                       |
-| `npm run crawl -- <url>`          | Crawl the site: link graph, broken links, orphans, template clusters                                                                         |
-| `npm run targets`                 | Every app and the environments it can be pointed at                                                                                          |
-| `npm run check-report -- <path>`  | Validate a QA report against `docs/report-format.md`                                                                                         |
-| `npm run role -- <role> "<task>"` | Run an agent role. Add `--env <local\|test\|prod> --target <url>` for one that drives a browser                                              |
-| `npm run triage -- <file>`        | Triage a failure JSON                                                                                                                        |
+| Command                           | Does                                                                                                                                                                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`                        | Local subjects + harness self-tests (unit, integration, api, e2e)                                                                                                                                                      |
+| `npm run test:external`           | Third-party subjects, opt-in                                                                                                                                                                                           |
+| `npm run check`                   | format + lint + typecheck                                                                                                                                                                                              |
+| `npm run assert-quality`          | Test quality gate                                                                                                                                                                                                      |
+| `npm run gate`                    | Release verdict, refusing stale results                                                                                                                                                                                |
+| `npm run mutate`                  | Breaks each enforced rule deliberately and checks the suite notices                                                                                                                                                    |
+| `npm run precommit`               | Housekeeping before a commit: dead commands and paths in docs, undocumented capability, stale `PLAN.md`, plus the drift no scanner can catch                                                                           |
+| `npm run plan:facts`              | The numbers `PLAN.md` quotes, read from the runs that produced them — refuses any that predate the code                                                                                                                |
+| `npm run scan -- <url>`           | Page scan + testability audit (`SCAN_DEEP=1` also probes hover, keyboard, responsive, scroll and zoom)                                                                                                                 |
+| `npm run ideas -- <scan.json>`    | Test cases a saved scan supports — boundaries, probes, write sequences, effect tags — the gates they face, and the judgement left. `--catalogue` lists every heuristic as scripted, generated, scriptable or judgement |
+| `npm run crawl -- <url>`          | Crawl the site: link graph, broken links, orphans, template clusters                                                                                                                                                   |
+| `npm run targets`                 | Every app and the environments it can be pointed at                                                                                                                                                                    |
+| `npm run check-report -- <path>`  | Validate a QA report against `docs/report-format.md`                                                                                                                                                                   |
+| `npm run role -- <role> "<task>"` | Run an agent role. Add `--env <local\|test\|prod> --target <url>` for one that drives a browser                                                                                                                        |
+| `npm run triage -- <file>`        | Triage a failure JSON                                                                                                                                                                                                  |
 
 The agent commands need a credential, not necessarily a key: the SDK uses
 `ANTHROPIC_API_KEY` from `.env` if one is there, and otherwise the OAuth session from

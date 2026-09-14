@@ -52,6 +52,22 @@ expect(create?.status).toBe(201);
 `npm run assert-quality` enforces the floor: no assertion, or navigate-plus-one-weak-
 assertion with no interaction, is a build failure.
 
+It also refuses a write checked only by what it rendered. A UI test tagged `@writes` or
+`@destructive` that drives the page must assert the call or read the state back, and an
+API write asserted as 2xx must be read back with a GET. Where the read-back deliberately
+lives in a sibling test, say so on the write:
+
+```ts
+// Read back in: 'should persist a created book so it can be read back'
+```
+
+## Probe values
+
+Import them from `src/fixtures/probes.js` (`PROBES`, `boundaryValues`,
+`lengthBoundaries`) and loop over them. A list of strings retyped into a spec drifts the
+first time one copy gains a case the others lack. `npm run ideas -- <scan.json>` names
+the set each generated case uses.
+
 ## Naming and structure
 
 - Test title: `should [expected behaviour] when [condition]`

@@ -4,10 +4,11 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { TSX_CLI } from '../../src/tool-paths.js';
 
 const exec = promisify(execFile);
 const REPO = resolve(process.cwd());
-const TSX = resolve(REPO, 'node_modules/tsx/dist/cli.mjs');
+const TSX = TSX_CLI;
 
 /**
  * The housekeeping gate has to actually refuse. One that passes whatever it is given

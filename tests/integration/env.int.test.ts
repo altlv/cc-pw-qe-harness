@@ -5,10 +5,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
+import { TSX_CLI } from '../../src/tool-paths.js';
 
 const exec = promisify(execFile);
 const REPO = resolve(process.cwd());
-const TSX = resolve(REPO, 'node_modules/tsx/dist/cli.mjs');
+const TSX = TSX_CLI;
 
 /**
  * The harness must load its own `.env` and nobody else's.

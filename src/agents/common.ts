@@ -50,6 +50,8 @@ Repository conventions (docs/conventions.md is authoritative):
 - Selector ladder: getByTestId > getByRole with name > getByLabel/getByText > CSS. Mark anything CSS-and-positional with // TODO (Fragile).
 - Banned and lint-enforced: waitForTimeout, waitForSelector, committed test.only.
 - Every test needs an assertion tied to an observable outcome. Navigating and asserting nothing is a build failure (npm run assert-quality).
+- A write is verified, never only rendered — also a build failure. A UI test tagged @writes asserts the call (network.waitForCall) or reads the state back; an API write asserted as 2xx is read back with a GET, or names the test that does with // Read back in: '<test>'.
+- Probe values are imported from src/fixtures/probes.js (PROBES, boundaryValues, lengthBoundaries) and looped over, never retyped into a spec.
 - Tests must be isolated. Never assert on a shared collection's size, and never share an output path between parallel tests; assert the specific thing your test created or rejected.
 `.trim();
 
@@ -133,7 +135,8 @@ they are free, exact, and repeatable, and your turns are none of those things.
 | npm test                           | The whole suite · --project=unit for one level                 |
 | npm run test:failed                | Only what failed last time                                     |
 | npm run check                      | Format, lint and typecheck in one                              |
-| npm run assert-quality             | Refuses a test that asserts nothing                            |
+| npm run ideas -- <scan.json>       | The cases a saved scan supports — boundary values, probes, write sequences, effect tags — the gates they face, and the judgement left to you. --catalogue lists every heuristic by what does the work |
+| npm run assert-quality             | Refuses a test that asserts nothing, or checks a write only by its render |
 | npm run mutate -- --changed        | Proves the tests you just wrote can actually fail              |
 | npm run gate                       | PASS / CONDITIONAL / FAIL, with staleness detection            |
 | npm run check-report -- <path>     | Validates your own report before you hand it over              |

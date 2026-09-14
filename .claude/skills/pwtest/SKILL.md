@@ -82,6 +82,11 @@ Apply `.claude/skills/test-design/SKILL.md`: equivalence partitioning, boundary 
 decision tables, and state transition for anything with modes. Score risk with
 `.claude/skills/risk-assessment/SKILL.md` to decide depth.
 
+Before deriving values by hand, run `npm run ideas -- apps/<app>/scans/<feature>.json`.
+It prints the boundary values, probe sets, write sequences and effect tags the scan
+supports, and which `assert-quality` gates the spec will face. Put those cases in the
+plan and spend the design effort on what it lists as judgement.
+
 Present the plan:
 
 ```markdown

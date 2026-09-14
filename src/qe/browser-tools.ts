@@ -1,6 +1,5 @@
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { BrowserAccess } from '../agents/roles.js';
+import { PLAYWRIGHT_MCP_CLI } from '../tool-paths.js';
 import type { ExplorationPolicy } from './exploration-policy.js';
 
 /**
@@ -266,14 +265,10 @@ export function browserMcpConfig(
   };
 }
 
-/** Anchored to this module, for the same reason `src/env.ts` is. */
+/**
+ * Resolved by walking up from this module, never from the working directory — the same
+ * reason `src/env.ts` is anchored.
+ */
 function mcpCliPath(): string {
-  return resolve(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      '..',
-      '..',
-      'node_modules/@playwright/mcp/cli.js',
-    ),
-  );
+  return PLAYWRIGHT_MCP_CLI;
 }

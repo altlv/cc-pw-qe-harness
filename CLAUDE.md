@@ -16,7 +16,8 @@ QA/QE work.
 | Release gate verdict                           | built                              | `src/qe/gate.ts`            |
 | Failure triage agent                           | built, unverified against live API | `src/agents/triage.ts`      |
 | Agent roles — coding family and testing family | defined, not yet driven            | `src/agents/roles.ts`       |
-| Test generation, self-healing selectors        | planned                            | —                           |
+| Self-healing selectors                         | built                              | `src/tools/heal.ts`         |
+| Test ideas from a scan, heuristics catalogue   | built, not yet used by an agent    | `src/qe/test-ideas.ts`      |
 
 Do not add placeholder modules for the planned items. Build one end to end when it
 is wanted.
@@ -34,8 +35,9 @@ through `runAgent()` in `src/agents/client.ts`, which enforces turn, spend and
 wall-clock limits. An agent that cannot solve a problem loops rather than erroring.
 
 **3. A test must prove behaviour.** Assert an observable outcome; for state changes
-assert the UI _and_ the captured network call. `npm run assert-quality` is the
-mechanical floor and it gates CI.
+assert the UI _and_ the captured network call, and read a write back rather than
+trusting its response. `npm run assert-quality` is the mechanical floor and it gates
+CI.
 
 **4. Never widen a selector or delete an assertion to make a test green.** Fix the
 locator or report the defect.
@@ -88,6 +90,8 @@ npm run gate              # PASS / CONDITIONAL / FAIL verdict
 npm run scan -- <url>     # page scan + testability audit
 npm run check-report      # validate QA reports against docs/report-format.md
 npm run triage -- <file>  # triage a failure JSON (needs API key)
+npm run ideas -- <scan.json>    # test cases a saved scan supports
+npm run precommit         # housekeeping before handing over a commit
 ```
 
 ## Gotchas

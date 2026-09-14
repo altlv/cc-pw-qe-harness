@@ -15,6 +15,7 @@ import {
   qualify,
 } from '../../src/qe/browser-tools.js';
 import { policyFor } from '../../src/qe/exploration-policy.js';
+import { PLAYWRIGHT_MCP_DIR } from '../../src/tool-paths.js';
 import { BROWSER_ACCESS, roles } from '../../src/agents/roles.js';
 
 /**
@@ -262,7 +263,7 @@ test.describe('classification keeps up with the package', () => {
         }
       }
     };
-    walk(join('node_modules', '@playwright', 'mcp'));
+    walk(PLAYWRIGHT_MCP_DIR);
     return [...found].sort();
   }
 

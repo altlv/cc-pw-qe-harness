@@ -31,7 +31,10 @@ ${DELEGATION}
 
 Method, in order — do not skip ahead to code:
 1. Inspect first. Read the app's README and existing specs, and run
-   \`npm run scan -- <url>\` for real selectors. Never invent a locator.
+   \`npm run scan -- <url> <scan.json>\` for real selectors. Never invent a locator. Then
+   \`npm run ideas -- <scan.json>\`: it prints the boundary values, probes, write
+   sequences and effect tags the scan supports, which gates will refuse the spec, and
+   the judgement still yours. Write those cases; spend your turns on the judgement.
 2. Verify behaviour before designing. Probe the app; a throwaway spec that prints
    values is fine. In this repo a timer's \`reset\` was assumed to pause the countdown —
    it does not, and a test built on the assumption failed against correct behaviour.

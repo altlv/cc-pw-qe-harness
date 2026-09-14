@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { PLAYWRIGHT_CLI } from '../tool-paths.js';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
@@ -572,6 +572,70 @@ const MUTATIONS: Mutation[] = [
     replace: '  const settledTo: Settling = await Promise.resolve()',
     breaks: 'Content a page adds after load must still reach the map',
   },
+  {
+    file: 'src/quality/assertions.ts',
+    find: '    if (writes && drivesPage && !checksTheWire) {',
+    replace: '    if (false) {',
+    breaks: 'A writing UI test that checks only the DOM must be refused',
+  },
+  {
+    file: 'src/quality/assertions.ts',
+    find: 'const readsBack = /\\b(?:api|request)\\.get\\s*\\(/.test(block.code);',
+    replace: 'const readsBack = true;',
+    breaks: 'A successful API write that is never read back must be refused',
+  },
+  {
+    // Without inheritance every @writes describe tags nothing, and the UI write rule
+    // silently stops applying to every spec written the conventional way.
+    file: 'src/quality/assertions.ts',
+    find: '      .flatMap((describe) => describe.tags);',
+    replace: '      .flatMap(() => [] as string[]);',
+    breaks: "A describe's effect tag must reach the tests inside it",
+  },
+  {
+    file: 'src/quality/assertions.ts',
+    find: 'tagsBetween(nameStart + nameLength, openIndex)',
+    replace: 'tagsBetween(match.index, openIndex)',
+    breaks: 'A tag named in a test title must not count as a tag',
+  },
+  {
+    file: 'src/fixtures/probes.ts',
+    find: '  const delta = parsedStep !== null && parsedStep > 0 ? parsedStep : 1;',
+    replace: '  const delta = 1;',
+    breaks: 'A boundary neighbour must be one step away, not one unit',
+  },
+  {
+    // A login form's probes, tagged @writes, would run on a shared environment and
+    // lock real accounts.
+    file: 'src/qe/test-ideas.ts',
+    find: "  const authenticates = elements.some((element) => element.type === 'password');",
+    replace: '  const authenticates = false;',
+    breaks: 'A credential attempt must be left untagged so it runs on local only',
+  },
+  {
+    file: 'src/qe/test-ideas.ts',
+    find: "  if (type === 'password') return ideas;",
+    replace: '',
+    breaks: 'A password field must never be handed a list of values to type',
+  },
+  {
+    file: 'src/qe/test-ideas.ts',
+    find: "  return endpoint.method === 'GET' && endpoint.response.length > 0;",
+    replace: "  return endpoint.method === 'GET';",
+    breaks: 'A bodiless GET must not be offered as the read that proves a write',
+  },
+  {
+    file: 'src/qe/test-ideas.ts',
+    find: '  if (predatesFormat(scan)) {',
+    replace: '  if (false) {',
+    breaks: 'A scan in the old format must be refused out loud, not read as a thin page',
+  },
+  {
+    file: 'src/qe/test-ideas.ts',
+    find: '    if (seen.has(key)) return false;',
+    replace: '    if (seen.size < 0) return false;',
+    breaks: 'A case shared by two controls must be printed once',
+  },
 ];
 
 /**
@@ -614,7 +678,7 @@ if (scoped) {
   console.log('');
 }
 
-const PLAYWRIGHT = resolve('node_modules/@playwright/test/cli.js');
+const PLAYWRIGHT = PLAYWRIGHT_CLI;
 
 /**
  * Runs the suites and reports whether they passed.

@@ -104,6 +104,8 @@ test.describe('Books — create', { tag: '@writes' }, () => {
 
     // Documents actual behaviour: 200, not the 201 a create conventionally returns.
     // Recorded as finding F2 in ../README.md rather than quietly asserted as correct.
+    // Read back in: 'should persist a created book so it can be read back' — this one
+    // proves the echo only, because persistence is a known defect with its own test.
     expect(response.status()).toBe(200);
     expect(
       (await response.json()) as Book,

@@ -3,7 +3,9 @@ export type FindingKind =
   | 'navigation-only'
   | 'unmarked-fragile-selector'
   | 'banned-wait'
-  | 'unexplained-failure';
+  | 'unexplained-failure'
+  | 'write-unverified'
+  | 'write-not-read-back';
 
 export interface QualityFinding {
   kind: FindingKind;
@@ -16,12 +18,42 @@ interface TestBlock {
   name: string;
   /** Masked: string and comment contents blanked. What the code-shaped rules judge. */
   code: string;
-  /** Raw text at the same offsets. Only the selector rule reads this. */
+  /** Raw text at the same offsets. The selector rule and the read-back marker read this. */
   raw: string;
   line: number;
+  /** Effect tags on the test and on every describe around it. */
+  tags: string[];
 }
 
 const TEST_DECL = /\btest(?:\.(?:only|skip|fixme))?\s*\(\s*(['"`])((?:\\.|(?!\1).)*)\1/g;
+const DESCRIBE_DECL = /\btest\.describe(?:\.(?:serial|parallel|only|skip|fixme))?\s*\(/g;
+const EFFECT_TAG = /@(?:read-only|writes|destructive)\b/g;
+
+/**
+ * A declaration's callback body as `[open, close]` offsets, brace-matched in the masked
+ * copy.
+ *
+ * Starts after the arrow, not after the title: `async ({ page }) => {` opens a brace
+ * for the destructured fixtures first, and matching that one yields an empty body and a
+ * bogus "no assertions" finding. For the same reason a describe's `{ tag: '@writes' }`
+ * options object is skipped.
+ */
+function bodyRange(source: string, from: number): [number, number] | null {
+  const arrowIndex = source.indexOf('=>', from);
+  const openIndex = source.indexOf('{', arrowIndex === -1 ? from : arrowIndex);
+  if (openIndex === -1) return null;
+
+  let depth = 0;
+  for (let i = openIndex; i < source.length; i += 1) {
+    const char = source[i];
+    if (char === '{') depth += 1;
+    else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return [openIndex, i];
+    }
+  }
+  return null;
+}
 
 /**
  * Blanks the contents of strings and comments, preserving length and newlines.
@@ -94,40 +126,37 @@ function extractBlocks(rawSource: string): TestBlock[] {
   const source = maskStringsAndComments(rawSource);
   const blocks: TestBlock[] = [];
 
+  // Tags are read from raw text, since the masked copy has blanked every string, and
+  // only between a declaration and its body, so a title cannot contribute one.
+  const tagsBetween = (from: number, to: number): string[] =>
+    [...rawSource.slice(from, to).matchAll(EFFECT_TAG)].map((tag) => tag[0]);
+
+  const describes: { range: [number, number]; tags: string[] }[] = [];
+  for (const match of source.matchAll(DESCRIBE_DECL)) {
+    const range = bodyRange(source, match.index + match[0].length);
+    if (range !== null) describes.push({ range, tags: tagsBetween(match.index, range[0]) });
+  }
+
   for (const match of source.matchAll(TEST_DECL)) {
     const nameLength = match[2]?.length ?? 0;
     // The name lives inside a string, so the masked copy has blanked it.
     const nameStart = match.index + match[0].length - nameLength - 1;
     const name = rawSource.slice(nameStart, nameStart + nameLength);
 
-    // Start after the arrow, not after the title: `async ({ page }) => {` opens a
-    // brace for the destructured fixtures first, and matching that one yields an
-    // empty body and a bogus "no assertions" finding.
-    const afterTitle = match.index + match[0].length;
-    const arrowIndex = source.indexOf('=>', afterTitle);
-    const openIndex = source.indexOf('{', arrowIndex === -1 ? afterTitle : arrowIndex);
-    if (openIndex === -1) continue;
+    const range = bodyRange(source, match.index + match[0].length);
+    if (range === null) continue;
+    const [openIndex, closeIndex] = range;
 
-    let depth = 0;
-    let closeIndex = -1;
-    for (let i = openIndex; i < source.length; i += 1) {
-      const char = source[i];
-      if (char === '{') depth += 1;
-      else if (char === '}') {
-        depth -= 1;
-        if (depth === 0) {
-          closeIndex = i;
-          break;
-        }
-      }
-    }
-    if (closeIndex === -1) continue;
+    const inherited = describes
+      .filter(({ range: [open, close] }) => open < match.index && match.index < close)
+      .flatMap((describe) => describe.tags);
 
     blocks.push({
       name,
       code: source.slice(openIndex, closeIndex + 1),
       raw: rawSource.slice(openIndex, closeIndex + 1),
       line: source.slice(0, match.index).split('\n').length,
+      tags: [...new Set([...inherited, ...tagsBetween(nameStart + nameLength, openIndex)])],
     });
   }
 
@@ -202,6 +231,48 @@ export function analyzeSpec(source: string): QualityFinding[] {
         detail:
           `${assertions} assertions, none explaining what a failure means. Give at least one ` +
           `a message: expect(value, 'why this matters').`,
+      });
+    }
+
+    // A writing UI test that checks only the DOM. An optimistic render looks the same
+    // over a 500 as over a 201, which is the defect class this harness exists to catch
+    // and the one a generated suite most reliably misses. Scoped to tests tagged as
+    // writing, because clicking a countdown timer changes nothing on any server.
+    const writes = block.tags.some((tag) => tag === '@writes' || tag === '@destructive');
+    const drivesPage =
+      /\bpage\b/.test(block.code) && /\.(click|press|tap|dispatchEvent)\s*\(/.test(block.code);
+    const checksTheWire =
+      /\bnetwork\.(waitForCall|failures|entries)\s*\(|\bwaitFor(?:Response|Request)\s*\(|\b(?:api|request)\.get\s*\(/.test(
+        block.code,
+      );
+    if (writes && drivesPage && !checksTheWire) {
+      findings.push({
+        kind: 'write-unverified',
+        testName: block.name,
+        line: block.line,
+        detail:
+          'Tagged as writing and drives the page, but asserts only the DOM. A render can look ' +
+          'right over a failed write — assert the call with network.waitForCall(), or read the ' +
+          'state back.',
+      });
+    }
+
+    // A write asserted as successful and never read back. This repo has a live API that
+    // returns 200, echoes the payload and stores nothing; every check on the response
+    // passes. A rejected write (a 4xx) is not held to this. Where the read-back lives in
+    // a sibling test on purpose, a `// Read back in: '<test>'` comment says so.
+    const apiWrite = /\b(?:api|request)\.(?:post|put|patch|delete)\s*\(/.test(block.code);
+    const expectsSuccess = /\.toBe(?:OK\s*\(\s*\)|\s*\(\s*20\d\s*\))/.test(block.code);
+    const readsBack = /\b(?:api|request)\.get\s*\(/.test(block.code);
+    if (apiWrite && expectsSuccess && !readsBack && !/\/\/\s*Read back in:/.test(block.raw)) {
+      findings.push({
+        kind: 'write-not-read-back',
+        testName: block.name,
+        line: block.line,
+        detail:
+          'Asserts a successful write and never reads it back. A response describes what the ' +
+          'server said, not what it stored — GET it, or name the test that does with ' +
+          "// Read back in: '<test>'.",
       });
     }
 

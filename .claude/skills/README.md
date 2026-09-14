@@ -52,7 +52,7 @@ Do not load the catalogue. Load one or two skills for the task in front of you.
 | Task                             | Load                                                                 |
 | -------------------------------- | -------------------------------------------------------------------- |
 | "what should I test"             | `risk-assessment` → `test-design`                                    |
-| "which values, which cases"      | `test-techniques`                                                    |
+| "which values, which cases"      | `npm run ideas -- <scan.json>`, then `test-techniques`               |
 | "look at this page"              | `visual-inspection`                                                  |
 | "write tests for this"           | `pwtest`                                                             |
 | "explore this feature"           | `exploratory-session` + `oracle-check`                               |

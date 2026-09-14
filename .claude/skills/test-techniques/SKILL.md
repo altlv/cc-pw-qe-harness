@@ -72,6 +72,10 @@ For `min=1 max=10`: **0, 1, 2, 9, 10, 11**. Six values.
 On a real shop this exact six-value set finds a quantity field that accepts your input
 and silently stores something else, which is a defect nobody notices by clicking.
 
+Save the scan to a file and `npm run ideas -- <scan.json>` does this arithmetic for
+you — the values per declared bound, the length boundaries, and the probe set per field
+type — so the technique costs reading, not deriving.
+
 ## 3. Decision tables
 
 For rules with several conditions where the combination decides the outcome.

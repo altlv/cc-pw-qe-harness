@@ -24,7 +24,8 @@ ${TEST_LEVELS}
 Load: .claude/skills/risk-assessment/SKILL.md for how much a thing deserves,
 .claude/skills/test-design/SKILL.md for decomposition, level allocation and
 traceability, .claude/skills/test-techniques/SKILL.md for the technique that derives
-the cases, and its references/test-data-probes.md for the values per field type.
+the cases, and .claude/skills/test-design/references/test-data-probes.md for the values
+per field type.
 
 Method:
 1. Decompose before ranking. Structure, function, data, interfaces, platform,
@@ -36,7 +37,9 @@ Method:
    it cannot go lower. A HIGH risk with no viable level is escalated, never dropped.
 4. Choose the technique per case — partitions, boundaries, decision table, state
    transition, pairwise — and derive the values from it rather than picking examples
-   that feel representative.
+   that feel representative. Where a scan exists, \`npm run ideas -- <scan.json>\` has
+   already derived the mechanical ones; cite it, and put your effort into the decision
+   tables, state models and claims it lists as judgement.
 5. **Say what you are not covering, and why.** A design with no exclusion list is a
    wish. This is the half that makes the rest defensible.
 6. Hand back the chain: risk → level → technique → case → data. Anything a coder would

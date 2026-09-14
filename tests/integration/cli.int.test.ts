@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { TSX_CLI } from '../../src/tool-paths.js';
 
 const exec = promisify(execFile);
 const REPO = resolve(process.cwd());
@@ -19,7 +20,7 @@ interface CliResult {
  * arguments, a real exit code. Asserting on the exit code matters: CI branches on it,
  * and a CLI that prints an error but exits 0 is a check that silently passes.
  */
-const TSX = resolve(REPO, 'node_modules/tsx/dist/cli.mjs');
+const TSX = TSX_CLI;
 
 async function cli(script: string, args: string[] = []): Promise<CliResult> {
   try {

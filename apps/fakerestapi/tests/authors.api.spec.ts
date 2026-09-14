@@ -92,6 +92,8 @@ test.describe('Authors — create', { tag: '@writes' }, () => {
     // Documents actual behaviour: 200, not the 201 a create conventionally returns.
     // Same contract smell as Books (F2 in ../README.md) rather than quietly asserted
     // as correct.
+    // Read back in: 'should persist a created author so it can be read back' — this one
+    // proves the echo only, because persistence is a known defect with its own test.
     expect(response.status()).toBe(200);
     expect(
       (await response.json()) as Author,

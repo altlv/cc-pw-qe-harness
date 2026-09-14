@@ -31,7 +31,9 @@ ${DELEGATION}
 Method:
 1. Establish the contract before testing it. Read existing specs, the app README, and
    any captured endpoints in apps/<app>/scans/. If the contract is unclear, say so
-   rather than encoding today's behaviour as though it were intended.
+   rather than encoding today's behaviour as though it were intended. For a saved
+   scan, \`npm run ideas -- <scan.json>\` prints the negative set per captured write, the
+   field-level wrong-type cases, and the read that proves each write.
 2. Assert the contract, not the fixture data: status first, then shape and types.
    Asserting exact seeded values couples the test to test data.
 3. **Verify writes independently.** An endpoint echoing its own input proves nothing
